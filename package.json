@@ -1,0 +1,56 @@
+{
+  "name": "cattle_tracking_backend",
+  "version": "1.0.0",
+  "description": "Real-time tracking for cattle and analytics",
+  "keywords": [
+    "cattle",
+    "tracking",
+    "cow",
+    "collar"
+  ],
+  "license": "ISC",
+  "author": "Oscar Dorronzoro",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "npm-run-all --parallel serve:app lint:watch",
+    "serve:app": "nodemon --exec babel-node src/app.js",
+    "share": "lt --port 4000 --subdomain ttads",
+    "lint": "esw src --color",
+    "lint:watch": "npm run lint -- --watch --fix",
+    "lint:fix": "npm run lint -- --fix",
+    "test": "mocha --reporter progress buildScripts/testSetup.js \"src/**/*.test.js\" ",
+    "test:watch": "npm test -- --watch",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && babel src -d dist",
+    "start_prod": "node dist/app.js",
+    "deploy": "./scripts/deploy.sh",
+    "sync_dev": "./scripts/sync_dev.sh"
+  },
+  "dependencies": {
+    "@babel/register": "^7.28.6",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "mariadb": "^3.4.5",
+    "node-cron": "^4.2.1",
+    "pg": "^8.22.0",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.3",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.28.6",
+    "@babel/node": "^7.28.6",
+    "@babel/preset-env": "^7.28.6",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-watch": "^8.0.0",
+    "nodemon": "^3.1.11",
+    "npm-run-all": "^4.1.5"
+  }
+}
