@@ -1,19 +1,29 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 import db from '../db/drizzle';
 import cows from '../schema/cows';
+import buildConditions from '../utils/buildConditions';
 
 const cowRepository = {
 
-  async findAll() {
-    const cowList = await db
+  async findAll(options = {}, tx = db) {
+    const conditions = buildConditions(cows, options.where);
+
+    let query = tx
       .select()
       .from(cows);
+
+    if (conditions.length) {
+      query = query.where(and(...conditions));
+    }
+
+    const cowList = await query;
+
     return cowList;
   },
 
-  async findById(id) {
-    const result = await db
+  async findById(id, tx = db) {
+    const result = await tx
       .select()
       .from(cows)
       .where(eq(cows.id, id));
@@ -21,8 +31,8 @@ const cowRepository = {
     return result[0] ?? null;
   },
 
-  async create(cow) {
-    const [created] = await db
+  async create(cow, tx = db) {
+    const [created] = await tx
       .insert(cows)
       .values(cow)
       .returning();
@@ -30,8 +40,8 @@ const cowRepository = {
     return created;
   },
 
-  async update(id, values) {
-    const [updated] = await db
+  async update(id, values, tx = db) {
+    const [updated] = await tx
       .update(cows)
       .set(values)
       .where(eq(cows.id, id))
@@ -40,8 +50,8 @@ const cowRepository = {
     return updated ?? null;
   },
 
-  async delete(id) {
-    await db
+  async delete(id, tx = db) {
+    await tx
       .delete(cows)
       .where(eq(cows.id, id));
   },

@@ -1,15 +1,13 @@
-import logger from './logger';
-
 const toRad = (value) => (value * Math.PI) / 180;
 
 export default function haversine(position1, position2) {
   if (!position1 || !position2) { return null; }
-  const lat1 = position1.latitude;
-  const lon1 = position1.longitude;
-  const lat2 = position2.latitude;
-  const lon2 = position2.longitude;
+  const lat1 = position1.location.latitude;
+  const lon1 = position1.location.longitude;
+  const lat2 = position2.location.latitude;
+  const lon2 = position2.location.longitude;
 
-  logger.debug(`${JSON.stringify(position1)}---${JSON.stringify(position2)}`);
+  // logger.debug(`${JSON.stringify(position1)}---${JSON.stringify(position2)}`);
 
   const R = 6371000; // Radio de la Tierra en m
 

@@ -6,23 +6,9 @@ import https from 'https';
 import fs from 'fs';
 import cron from 'node-cron';
 
-// import { sql } from 'drizzle-orm';
-import sequelize from './sequelize';
 import routes from './routes';
 import processPendingMessages from './jobs/processRawRfJob';
 import logger from './utils/logger';
-/*
-import db from './db/drizzle';
-
-async function main() {
-  const result = await db.execute(sql`select version()`);
-
-  console.log(result.rows);
-
-  process.exit(0);
-}
-
-main(); */
 
 // Config
 dotenv.config({ quiet: true });
@@ -34,12 +20,6 @@ const API_BASE_URL = '/api';
 
 const { TLS_CRT } = process.env;
 const { TLS_KEY } = process.env;
-
-try {
-  sequelize.authenticate();
-} catch (err) {
-  logger.error(err, 'Unable to connect to database');
-}
 
 // Express
 const app = express();
@@ -96,8 +76,20 @@ try {
 }
 
 // Jobs
+let running = false;
 cron.schedule('*/5 * * * * *', async () => {
-  await processPendingMessages();
+  if (running) {
+    logger.warn('Job already running');
+    return;
+  }
+
+  running = true;
+
+  try {
+    await processPendingMessages();
+  } finally {
+    running = false;
+  }
 });
 
 export default app;

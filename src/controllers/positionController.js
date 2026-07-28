@@ -1,15 +1,9 @@
-import { Op } from 'sequelize';
-import Position from '../models/PositionModel';
 import logger from '../utils/logger';
+import positionRepository from '../repositories/positionRepository';
 
 function positionController() {
   async function get(req, res) {
     try {
-      const query = {
-        where: {
-        },
-      };
-
       let dateTo = new Date();
       const dateToParam = new Date(req.query.dateTo);
       if (!Number.isNaN(dateToParam.getTime())) {
@@ -22,14 +16,14 @@ function positionController() {
         dateFrom = dateFromParam;
       }
 
-      query.where.recordedAt = {
-        [Op.lt]: dateTo,
-        [Op.gte]: dateFrom,
-      };
-
-      const positions = await Position.findAll(
-        query,
-      );
+      const positions = await positionRepository.findAll({
+        where: {
+          recordedAt: {
+            lt: dateTo,
+            gte: dateFrom,
+          },
+        },
+      });
 
       return res.json(positions);
     } catch (err) {

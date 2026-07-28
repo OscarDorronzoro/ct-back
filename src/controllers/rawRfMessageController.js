@@ -1,37 +1,32 @@
-import { Op } from 'sequelize';
-
-import RawRfMessage from '../models/RawRfMessageModel';
+// import RawRfMessage from '../models/RawRfMessageModel';
 import logger from '../utils/logger';
+
+import rawRfMessageRepository from '../repositories/rawRfMessageRepository';
 
 function rawRfMessageController() {
   async function get(req, res) {
     try {
-      const query = {
-        where: {
-        },
-      };
-
       let dateTo = new Date();
       const dateToParam = new Date(req.query.dateTo);
       if (req.query.dateTo && !Number.isNaN(dateToParam.getTime())) {
-        dateTo = dateToParam.toISOString();
+        dateTo = dateToParam;
       }
 
       let dateFrom = new Date();
       dateFrom.setTime(dateFrom.getTime() - 1000 * 60 * 60 * 3);
       const dateFromParam = new Date(req.query.dateFrom);
       if (!Number.isNaN(dateFromParam.getTime())) {
-        dateFrom = dateFromParam.toISOString();
+        dateFrom = dateFromParam;
       }
 
-      query.where.recordedAt = {
-        [Op.lt]: new Date(dateTo),
-        [Op.gte]: new Date(dateFrom),
-      };
-
-      const rawRfMessages = await RawRfMessage.findAll(
-        query,
-      );
+      const rawRfMessages = await rawRfMessageRepository.findAll({
+        where: {
+          recordedAt: {
+            lt: new Date(dateTo),
+            gte: new Date(dateFrom),
+          },
+        },
+      });
 
       return res.json(rawRfMessages);
     } catch (err) {
@@ -94,54 +89,59 @@ function rawRfMessageController() {
         invalid = 3;
       }
 
-      const loc = {};
-      loc.collarId = body.collarId;
-      loc.latitude = body.latitude;
-      loc.longitude = body.longitude;
-      loc.recordedAt = body.recordedAt;
-      loc.invalidReasonId = invalid;
+      const raw = {};
+      raw.collarId = body.collarId;
+      raw.latitude = body.latitude;
+      raw.longitude = body.longitude;
+      raw.location = {
+        latitude: body.latitude,
+        longitude: body.longitude,
+      };
+      raw.recordedAt = body.recordedAt;
+      raw.invalidReasonId = invalid;
 
       if (!body.recordedAt) {
-        loc.recordedAt = new Date();
+        raw.recordedAt = new Date();
       }
 
-      if (body.speed) {
-        loc.speed = body.speed;
+      if (body.speed !== undefined) {
+        raw.speed = body.speed;
       }
 
-      if (body.altitude) {
-        loc.altitude = body.altitude;
+      if (body.altitude !== undefined) {
+        raw.altitude = body.altitude;
       }
 
-      if (body.satellitesCount) {
-        loc.satellitesCount = body.satellitesCount;
+      if (body.satellitesCount !== undefined) {
+        raw.satellitesCount = body.satellitesCount;
       }
 
-      if (body.hdop) {
-        loc.hdop = body.hdop;
+      if (body.hdop !== undefined) {
+        raw.hdop = body.hdop;
       }
 
-      if (body.rssi) {
-        loc.rssi = body.rssi;
+      if (body.rssi !== undefined) {
+        raw.rssi = body.rssi;
       }
 
-      if (body.snr) {
-        loc.snr = body.snr;
+      if (body.snr !== undefined) {
+        raw.snr = body.snr;
       }
 
-      if (body.voltage) {
-        loc.voltage = body.voltage;
+      if (body.voltage !== undefined) {
+        raw.voltage = body.voltage;
       }
 
       if (body.crc) {
-        loc.crc = body.crc;
+        raw.crc = body.crc;
       }
 
       if (body.gatewayId) {
-        loc.gatewayId = body.gatewayId;
+        raw.gatewayId = body.gatewayId;
       }
 
-      const rawRfMessage = await RawRfMessage.create(loc);
+      const rawRfMessage = await rawRfMessageRepository.create(raw);
+
       return res.status(202) // 202 Accepted. The request has been received but not yet acted upon
         .json({
           rawRfMessage: rawRfMessage.id,
