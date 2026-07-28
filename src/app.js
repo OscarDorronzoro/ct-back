@@ -1,6 +1,6 @@
+import './config/env';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import http from 'http';
 import https from 'https';
 import fs from 'fs';
@@ -9,9 +9,6 @@ import cron from 'node-cron';
 import routes from './routes';
 import processPendingMessages from './jobs/processRawRfJob';
 import logger from './utils/logger';
-
-// Config
-dotenv.config({ quiet: true });
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
