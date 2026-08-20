@@ -1,10 +1,7 @@
-// import RawRfMessage from '../models/RawRfMessageModel';
-import logger from '../utils/logger';
-
 import rawRfMessageRepository from '../repositories/rawRfMessageRepository';
 
 function rawRfMessageController() {
-  async function get(req, res) {
+  async function get(req, res, next) {
     try {
       let dateTo = new Date();
       const dateToParam = new Date(req.query.dateTo);
@@ -30,19 +27,11 @@ function rawRfMessageController() {
 
       return res.json(rawRfMessages);
     } catch (err) {
-      const error = {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      };
-      logger.warn(err);
-
-      return res.status(503)
-        .json(error);
+      return next(err);
     }
   }
 
-  async function post(req, res) {
+  async function post(req, res, next) {
     try {
       const { body } = req;
 
@@ -149,15 +138,7 @@ function rawRfMessageController() {
           invalidReasonId: rawRfMessage.invalidReasonId,
         });
     } catch (err) {
-      const error = {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      };
-      logger.error(err);
-
-      return res.status(503)
-        .json(error);
+      return next(err);
     }
   }
 

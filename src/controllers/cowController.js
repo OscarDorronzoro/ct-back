@@ -1,91 +1,178 @@
-import logger from '../utils/logger';
-import cowRepository from '../repositories/cowRepository';
+import cowService from '../services/cowService';
+import validator from '../utils/validator';
 
 function cowController() {
-  async function get(req, res) {
+  async function get(req, res, next) {
     try {
-      const cowId = Number(req.params.cowId);
-      if (!req.params.cowId || Number.isNaN(cowId)) return;
+      const cowId = validator.parsePositiveInteger(req.params.cowId);
 
-      const cow = await cowRepository.findById(cowId);
-
-      if (!cow) {
-        res.status(404)
-          .json({ message: 'Cow not found' });
+      if (cowId === null) {
+        return res.status(400)
+          .json({ error: 'id required' });
       }
 
-      res.status(200)
+      const cow = await cowService.get(cowId);
+
+      if (!cow) {
+        return res.status(404)
+          .json({ error: 'Cow not found' });
+      }
+
+      return res.status(200)
         .json(cow);
     } catch (err) {
-      const error = {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      };
-      logger.error(err);
-
-      res.status(503)
-        .json(error);
+      return next(err);
     }
   }
 
-  async function post(req, res) {
+  async function getAll(req, res, next) {
+    try {
+      const cows = await cowService.getAll();
+
+      return res.status(200)
+        .json(cows);
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  async function post(req, res, next) {
     try {
       const { body } = req;
 
-      const c = {};
+      const cow = {};
+      const cowData = {};
 
       if (body.breedId) {
-        c.breedId = body.breedId;
+        cow.breedId = body.breedId;
+      }
+      if (body.currentCollarId !== undefined) {
+        cow.currentCollarId = body.currentCollarId;
       }
       if (body.earTag) {
-        c.earTag = body.earTag;
+        cow.earTag = body.earTag;
       }
       if (body.alias) {
-        c.alias = body.alias;
+        cow.alias = body.alias;
       }
-      if (body.imageUrl) {
-        c.imageUrl = body.imageUrl;
+      if (body.birthDate) {
+        cow.birthDate = body.birthDate;
+      }
+      if (req.file) {
+        cowData.image = req.file;
       }
 
-      const cow = await cowRepository.create(c);
+      if (Object.hasOwn(body, 'groupIds')) {
+        if (!Array.isArray(body.groupIds)) {
+          return res.status(400)
+            .json({ error: 'groupIds must be an array' });
+        }
+
+        const groupIds = body.groupIds.map(Number);
+        if (groupIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+          return res.status(400)
+            .json({ error: 'groupIds must only contain positive integers' });
+        }
+
+        cowData.groupIds = [...new Set(groupIds)];
+      }
+
+      const cowCreated = await cowService.create(cow, cowData);
 
       return res.status(201)
-        .json({ cow: cow.id, status: 'OK' });
+        .json({ cow: cowCreated });
     } catch (err) {
-      const error = {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      };
-      logger.error(err);
-
-      return res.status(503)
-        .json(error);
+      return next(err);
     }
   }
 
-  async function getAll(req, res) {
+  async function put(req, res, next) {
+    const cowId = validator.parsePositiveInteger(req.params.cowId);
+
+    if (cowId === null) {
+      return res.status(400)
+        .json({ error: 'id required' });
+    }
+
     try {
-      const cows = await cowRepository.findAll();
+      const { body } = req;
 
-      res.status(200)
-        .json(cows);
+      const cow = {};
+      const cowData = {};
+
+      if (validator.parsePositiveInteger(body.breedId)) {
+        cow.breedId = validator.parsePositiveInteger(body.breedId);
+      }
+      if (body.currentCollarId !== undefined) {
+        cow.currentCollarId = validator.parsePositiveInteger(body.currentCollarId);
+      }
+      if (body.earTag) {
+        cow.earTag = body.earTag;
+      }
+      if (body.alias) {
+        cow.alias = body.alias;
+      }
+      if (body.birthDate) {
+        cow.birthDate = body.birthDate;
+      }
+      if (req.file) {
+        cowData.image = req.file;
+      }
+
+      if (Object.hasOwn(body, 'groupIds')) {
+        if (!Array.isArray(body.groupIds)) {
+          return res.status(400)
+            .json({ error: 'groupIds must be an array' });
+        }
+
+        const groupIds = body.groupIds.map(Number);
+        if (groupIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+          return res.status(400)
+            .json({ error: 'groupIds must only contain positive integers' });
+        }
+
+        cowData.groupIds = [...new Set(groupIds)];
+      }
+
+      cow.updatedAt = new Date();
+
+      const cowReturned = await cowService.update(cowId, cow, cowData);
+
+      return res.status(200)
+        .json({ cow: cowReturned });
     } catch (err) {
-      const error = {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      };
-      logger.error(err);
+      return next(err);
+    }
+  }
 
-      res.status(503)
-        .json(error);
+  async function del(req, res, next) {
+    const cowId = validator.parsePositiveInteger(req.params.cowId);
+
+    if (cowId === null) {
+      return res.status(400)
+        .json({ error: 'id required' });
+    }
+
+    try {
+      const cow = await cowService.delete(cowId);
+
+      if (!cow) {
+        return res.status(404)
+          .json({ error: 'Cow not found' });
+      }
+
+      return res.status(204).send();
+    } catch (err) {
+      return next(err);
     }
   }
 
   return {
-    get, post, getAll,
+    get,
+    getAll,
+    post,
+    put,
+    del,
   };
 }
 

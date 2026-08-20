@@ -4,48 +4,46 @@ import {
 } from 'drizzle-orm';
 
 import db from '../db/drizzle';
-import cows from '../schema/cows';
+import collars from '../schema/collars';
 import buildConditions from '../utils/buildConditions';
 import validator from '../utils/validator';
 import unaccentIlike from '../utils/unaccentIlike';
 
-const cowRepository = {
-
+const collarRepository = {
   async findAll(options = {}, tx = db) {
-    const conditions = buildConditions(cows, options.where);
+    const conditions = buildConditions(collars, options.where);
 
-    let query = tx
+    const query = tx
       .select()
-      .from(cows);
+      .from(collars)
+      .where(
+        and(
+          ...conditions,
+          isNull(collars.deletedAt),
+        ),
+      );
 
-    if (conditions.length) {
-      query = query.where(and(
-        ...conditions,
-        isNull(cows.deletedAt),
-      ));
-    }
+    const collarList = await query;
 
-    const cowList = await query;
-
-    return cowList;
+    return collarList;
   },
 
   async findById(id, tx = db) {
-    const [result] = await tx
+    const result = await tx
       .select()
-      .from(cows)
+      .from(collars)
       .where(and(
-        eq(cows.id, id),
-        isNull(cows.deletedAt),
+        eq(collars.id, id),
+        isNull(collars.deletedAt),
       ));
 
-    return result ?? null;
+    return result[0] ?? null;
   },
 
-  async create(cow, tx = db) {
+  async create(collar, tx = db) {
     const [created] = await tx
-      .insert(cows)
-      .values(cow)
+      .insert(collars)
+      .values(collar)
       .returning();
 
     return created;
@@ -53,21 +51,23 @@ const cowRepository = {
 
   async update(id, values, tx = db) {
     const [updated] = await tx
-      .update(cows)
+      .update(collars)
       .set(values)
-      .where(eq(cows.id, id))
+      .where(eq(collars.id, id))
       .returning();
 
     return updated ?? null;
   },
 
   async delete(id, tx = db) {
+    const now = new Date();
     const [deleted] = await tx
-      .update(cows)
+      .update(collars)
       .set({
-        deletedAt: new Date(),
+        deletedAt: now,
+        updatedAt: now,
       })
-      .where(eq(cows.id, id))
+      .where(eq(collars.id, id))
       .returning();
 
     return deleted ?? null;
@@ -78,25 +78,24 @@ const cowRepository = {
     const pattern = `%${escapedQuery}%`;
 
     const conditions = [
-      unaccentIlike(cows.alias, pattern),
-      unaccentIlike(cows.earTag, pattern),
+      unaccentIlike(collars.description, pattern),
     ];
 
     const id = Number(query);
 
     if (Number.isInteger(id) && id > 0) {
-      conditions.push(eq(cows.id, id));
+      conditions.push(eq(collars.id, id));
     }
 
     return tx
       .select()
-      .from(cows)
+      .from(collars)
       .where(and(
         or(...conditions),
-        isNull(cows.deletedAt),
+        isNull(collars.deletedAt),
       ))
       .limit(20);
   },
 };
 
-export default cowRepository;
+export default collarRepository;

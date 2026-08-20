@@ -1,14 +1,15 @@
-import './config/env';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import cron from 'node-cron';
 
+import logger from './utils/logger';
 import routes from './routes';
 import processPendingMessages from './jobs/processRawRfJob';
-import logger from './utils/logger';
+import errorHandler from './middleware/errorHandler';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -21,8 +22,10 @@ const { TLS_KEY } = process.env;
 // Express
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb', extended: true }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(cookieParser());
 
 // CORS
 const corsOptions = {
@@ -43,38 +46,46 @@ const corsOptions = {
     'http://rastreo.vacas.inet',
     'https://rastreo.vacas.inet',
   ],
+  credentials: true,
 };
 app.use(cors(corsOptions));
 
 // Routes
 app.use(API_BASE_URL, routes);
 
+// Error handler middleware
+app.use(errorHandler);
+
 // Serve app (HTTP)
 const httpServer = http.createServer(app);
 
-httpServer.listen(API_PORT + 1, API_HOST, () => {
-  logger.info(`Backend http listening on port ${API_PORT + 1}, host ${API_HOST}`);
+const portHttp = API_PORT;
+httpServer.listen(portHttp, API_HOST, () => {
+  logger.info(`Backend http listening on port ${portHttp}, host ${API_HOST}`);
 });
 
 // Serve app (HTTPS)
 let httpsServer = null;
 try {
   // Read tls certificate
-  const key = fs.readFileSync(TLS_KEY, 'utf8');
-  const cert = fs.readFileSync(TLS_CRT, 'utf8');
+  if (TLS_CRT && TLS_KEY) {
+    const key = fs.readFileSync(TLS_KEY, 'utf8');
+    const cert = fs.readFileSync(TLS_CRT, 'utf8');
 
-  httpsServer = https.createServer({ key, cert }, app);
+    httpsServer = https.createServer({ key, cert }, app);
 
-  httpsServer.listen(API_PORT, API_HOST, () => {
-    logger.info(`Backend https listening on port ${API_PORT}, host ${API_HOST}`);
-  });
+    const portHttps = API_PORT + 1;
+    httpsServer.listen(portHttps, API_HOST, () => {
+      logger.info(`Backend https listening on port ${portHttps}, host ${API_HOST}`);
+    });
+  }
 } catch (err) {
   logger.warn(err, 'HTTPS server cannot be started');
 }
 
 // Jobs
 let running = false;
-cron.schedule('*/5 * * * * *', async () => {
+const jobProcessMessages = cron.schedule('*/5 * * * * *', async () => {
   if (running) {
     logger.warn('Job already running');
     return;
@@ -87,6 +98,20 @@ cron.schedule('*/5 * * * * *', async () => {
   } finally {
     running = false;
   }
+});
+
+jobProcessMessages.on('execution:missed', (ctx) => {
+  logger.warn({
+    message: 'processPendingMessages execution missed',
+    execution: ctx.execution,
+  });
+});
+
+jobProcessMessages.on('execution:failed', (ctx) => {
+  logger.error({
+    message: 'processPendingMessages an error ocurred',
+    execution: ctx.execution,
+  });
 });
 
 export default app;

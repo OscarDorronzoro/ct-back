@@ -1,8 +1,7 @@
-import logger from '../utils/logger';
 import positionRepository from '../repositories/positionRepository';
 
 function positionController() {
-  async function get(req, res) {
+  async function get(req, res, next) {
     try {
       let dateTo = new Date();
       const dateToParam = new Date(req.query.dateTo);
@@ -19,23 +18,15 @@ function positionController() {
       const positions = await positionRepository.findAll({
         where: {
           recordedAt: {
-            lt: dateTo,
-            gte: dateFrom,
+            lt: new Date(dateTo),
+            gte: new Date(dateFrom),
           },
         },
       });
 
       return res.json(positions);
     } catch (err) {
-      const error = {
-        message: err.message,
-        name: err.name,
-        stack: err.stack,
-      };
-      logger.error(err);
-
-      return res.status(503)
-        .json(error);
+      return next(err);
     }
   }
 

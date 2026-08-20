@@ -1,5 +1,6 @@
 import {
-  and, eq, inArray,
+  and, or,
+  eq, inArray, gte, lt, isNull,
   asc, desc,
   sql,
 } from 'drizzle-orm';
@@ -7,8 +8,41 @@ import {
 import db from '../db/drizzle';
 import rawRfMessages from '../schema/rawRfMessages';
 import buildConditions from '../utils/buildConditions';
+import collars from '../schema/collars';
+import cowCollarAssignments from '../schema/cowCollarAssignments';
 
 const rawRfMessageRepository = {
+
+  async findPendingForProcessing(limit = 1000, tx = db) {
+    const query = tx
+      .select({
+        ...rawRfMessages,
+        collarIdExists: collars.id,
+        cowId: cowCollarAssignments.cowId,
+      })
+      .from(rawRfMessages)
+      .leftJoin(
+        collars,
+        eq(rawRfMessages.collarId, collars.id),
+      )
+      .leftJoin(
+        cowCollarAssignments,
+        and(
+          eq(collars.id, cowCollarAssignments.collarId),
+          gte(rawRfMessages.recordedAt, cowCollarAssignments.dateFrom),
+          or(
+            isNull(cowCollarAssignments.dateTo),
+            lt(rawRfMessages.recordedAt, cowCollarAssignments.dateTo),
+          ),
+        ),
+      )
+      .where(isNull(rawRfMessages.processedAt))
+      .orderBy(asc(rawRfMessages.id))
+      .limit(limit);
+
+    const rawRfMessageList = await query;
+    return rawRfMessageList;
+  },
 
   async findAll(options = {}, tx = db) {
     const conditions = buildConditions(rawRfMessages, options.where);

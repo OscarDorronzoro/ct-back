@@ -58,7 +58,10 @@ async function processPendingMessages() {
 
   // Get batch to process
   let start = Date.now();
-  const raws = await rawRfMessageRepository.findAll({
+
+  const raws = await rawRfMessageRepository.findPendingForProcessing(1000);
+
+  /* const raws = await rawRfMessageRepository.findAll({
     where: {
       processedAt: {
         isNull: true,
@@ -71,7 +74,7 @@ async function processPendingMessages() {
         direction: 'asc',
       },
     ],
-  });
+  }); */
 
   /*
   const raws = await RawRfMessage.findAll({
@@ -164,10 +167,15 @@ async function processPendingMessages() {
         position.speed = raw.speed;
 
         position.rawRfMessageId = raw.id;
-        position.collarId = raw.collarId;
-        position.cowId = raw.collarId === 128 ? 6 : 7; // hardcoded cow
+        position.collarId = raw.collarIdExists;
+        position.cowId = raw.cowId;
 
         let invalid = raw.invalidReasonId ?? 0;
+
+        // Check that collarId is valid (left join collars)
+        if (raw.collarIdExists === null) {
+          invalid = 20;
+        }
 
         // Only check valid positions, avoid first position (without prev)
         const prevPosition = previousPositions[position.collarId];

@@ -2,17 +2,13 @@ import {
   pgTable, integer, varchar, text, timestamp,
 } from 'drizzle-orm/pg-core';
 
-const cows = pgTable('cows', {
+const collars = pgTable('collars', {
   id: integer().notNull().primaryKey().generatedAlwaysAsIdentity(),
-  breedId: integer('breed_id'),
-  currentCollarId: integer('current_collar_id'),
-  earTag: varchar('ear_tag'),
-  alias: varchar(),
-  birthDate: timestamp('birth_date'),
-  imageUrl: text('image_url'),
+  firmwareVersion: varchar('firmware_version').notNull(),
+  description: text(),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }),
   deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
 });
 
-export default cows;
+export default collars;

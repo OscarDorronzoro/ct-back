@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import posController from '../controllers/positionController';
 
-const router = Router();
+const positionRouter = Router();
 const positionController = posController();
 
-router
+positionRouter
   .get('/', positionController.get);
 
-export default router;
+export default positionRouter;

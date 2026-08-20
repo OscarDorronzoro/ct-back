@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import rawRfMsgController from '../controllers/rawRfMessageController';
 
-const router = Router();
+import gatewayAuth from '../middleware/gatewayAuth';
+// import authenticateUser from '../middleware/authenticateUser';
+
+const rfRouter = Router();
 const rawRfMessageController = rawRfMsgController();
 
-router
+rfRouter
   .get('/', rawRfMessageController.get)
-  .post('/', rawRfMessageController.post);
+  .post('/', gatewayAuth, rawRfMessageController.post);
 
-export default router;
+export default rfRouter;
