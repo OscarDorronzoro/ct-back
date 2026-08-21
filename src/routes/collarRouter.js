@@ -1,7 +1,9 @@
 import { Router } from 'express';
 
-import authenticateUser from '../middleware/authenticateUser';
 import collarController from '../controllers/collarController';
+
+import authorizeRoles from '../middleware/authorizeRoles';
+import ROLES from '../utils/roles';
 
 const collarRouter = Router();
 const controller = collarController();
@@ -9,8 +11,8 @@ const controller = collarController();
 collarRouter
   .get('/', controller.getAll)
   .get('/:collarId', controller.get)
-  .post('/', authenticateUser, controller.post)
-  .put('/:collarId', authenticateUser, controller.put)
-  .delete('/:collarId', authenticateUser, controller.del);
+  .post('/', authorizeRoles(ROLES.OPERATOR), controller.post)
+  .put('/:collarId', authorizeRoles(ROLES.OPERATOR), controller.put)
+  .delete('/:collarId', authorizeRoles(ROLES.OPERATOR), controller.del);
 
 export default collarRouter;

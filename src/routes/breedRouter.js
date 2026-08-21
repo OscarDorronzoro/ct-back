@@ -1,7 +1,9 @@
 import { Router } from 'express';
 
-import authenticateUser from '../middleware/authenticateUser';
 import breedController from '../controllers/breedController';
+
+import authorizeRoles from '../middleware/authorizeRoles';
+import ROLES from '../utils/roles';
 
 const breedRouter = Router();
 const controller = breedController();
@@ -9,8 +11,8 @@ const controller = breedController();
 breedRouter
   .get('/', controller.getAll)
   .get('/:breedId', controller.get)
-  .post('/', authenticateUser, controller.post)
-  .put('/:breedId', authenticateUser, controller.put)
-  .delete('/:breedId', authenticateUser, controller.del);
+  .post('/', authorizeRoles(ROLES.OPERATOR), controller.post)
+  .put('/:breedId', authorizeRoles(ROLES.OPERATOR), controller.put)
+  .delete('/:breedId', authorizeRoles(ROLES.OPERATOR), controller.del);
 
 export default breedRouter;

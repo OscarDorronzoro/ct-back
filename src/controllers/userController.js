@@ -14,7 +14,7 @@ function userController() {
 
       const user = await userService.get(userId);
 
-      return res.status(200).json({ user });
+      return res.status(200).json(user);
     } catch (err) {
       return next(err);
     }
@@ -22,10 +22,10 @@ function userController() {
 
   async function getAll(req, res, next) {
     try {
-      const users = await userService.findAll();
+      const users = await userService.getAll();
 
       return res.status(200)
-        .json({ users });
+        .json(users);
     } catch (err) {
       return next(err);
     }

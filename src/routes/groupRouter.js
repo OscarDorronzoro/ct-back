@@ -1,7 +1,9 @@
 import { Router } from 'express';
 
-import authenticateUser from '../middleware/authenticateUser';
 import groupController from '../controllers/groupController';
+
+import authorizeRoles from '../middleware/authorizeRoles';
+import ROLES from '../utils/roles';
 
 const groupRouter = Router();
 const controller = groupController();
@@ -9,8 +11,8 @@ const controller = groupController();
 groupRouter
   .get('/', controller.getAll)
   .get('/:groupId', controller.get)
-  .post('/', authenticateUser, controller.post)
-  .put('/:groupId', authenticateUser, controller.put)
-  .delete('/:groupId', authenticateUser, controller.del);
+  .post('/', authorizeRoles(ROLES.OPERATOR), controller.post)
+  .put('/:groupId', authorizeRoles(ROLES.OPERATOR), controller.put)
+  .delete('/:groupId', authorizeRoles(ROLES.OPERATOR), controller.del);
 
 export default groupRouter;
