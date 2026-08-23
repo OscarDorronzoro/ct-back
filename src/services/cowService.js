@@ -10,6 +10,24 @@ import cowGroupMembershipService from './cowGroupMembershipService';
 import groupRepository from '../repositories/groupRepository';
 import cowGroupMembershipRepository from '../repositories/cowGroupMembershipRepository';
 
+async function validateGroups(groupIds, tx) {
+  if (groupIds.length === 0) {
+    return;
+  }
+
+  const groups = await groupRepository.findAll({
+    where: {
+      id: {
+        in: groupIds,
+      },
+    },
+  }, tx);
+
+  if (groupIds.length !== groups.length) {
+    throw new AppError('GROUP_NOT_FOUND', 404);
+  }
+}
+
 const cowService = {
 
   async get(cowId) {
@@ -98,17 +116,7 @@ const cowService = {
 
         // Manage group memberships
         if (data.groupIds !== undefined) {
-          if (data.groupIds.length !== 0) {
-            const newGroups = await groupRepository.findAll({
-              where: {
-                in: data.groupIds,
-              },
-            }, tx);
-
-            if (data.groupIds.length !== newGroups.length) {
-              throw new AppError('GROUP_NOT_FOUND', 404);
-            }
-          }
+          await validateGroups(data.groupIds, tx);
 
           await cowGroupMembershipService.sync(cowCreated.id, data.groupIds, tx);
         }
@@ -174,19 +182,7 @@ const cowService = {
 
         // Manage group memberships
         if (data.groupIds !== undefined) {
-          if (data.groupIds.length !== 0) {
-            const newGroups = await groupRepository.findAll({
-              where: {
-                id: {
-                  in: data.groupIds,
-                },
-              },
-            }, tx);
-
-            if (data.groupIds.length !== newGroups.length) {
-              throw new AppError('GROUP_NOT_FOUND', 404);
-            }
-          }
+          await validateGroups(data.groupIds, tx);
 
           await cowGroupMembershipService.sync(cowId, data.groupIds, tx);
         }
