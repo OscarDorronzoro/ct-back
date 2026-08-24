@@ -1,7 +1,10 @@
 node_modules/
 package-lock.json
+
 drizzle/
 dist/
 db_restore/
 scripts/
+tlscert/
+
 .env
