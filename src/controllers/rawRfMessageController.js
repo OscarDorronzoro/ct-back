@@ -1,4 +1,7 @@
 import rawRfMessageRepository from '../repositories/rawRfMessageRepository';
+import rawRfMessageValidator from '../validators/rawRfMessageValidator';
+
+import logger from '../utils/logger';
 
 function rawRfMessageController() {
   async function get(req, res, next) {
@@ -33,101 +36,52 @@ function rawRfMessageController() {
 
   async function post(req, res, next) {
     try {
-      const { body } = req;
+      const result = rawRfMessageValidator.safeParse(req.body);
 
-      if (!body || !body.collarId) {
+      if (!result.success) {
+        logger.debug({
+          message: 'Invalid raw RF message payload',
+          issues: result.error.issues,
+        });
+
         return res.status(400)
-          .json({ error: 'collarId is requiered' });
+          .json({ error: 'BAD_REQUEST' });
       }
 
-      if (!body || body.latitude === undefined) {
-        return res.status(400)
-          .json({ error: 'latitude is requiered' });
-      }
+      const body = result.data;
 
-      if (!body || body.longitude === undefined) {
-        return res.status(400)
-          .json({ error: 'longitude is requiered' });
-      }
-
-      // Check data validity </Marker>
+      // Check data validity
       let invalid = 0;
-      if (body.latitude < -90 || body.latitude > 90) {
-        body.latitude = -1;
-        invalid = 1;
-      }
-      if (body.longitude < -180 || body.longitude > 180) {
-        body.longitude = -1;
-        invalid = 1;
-      }
-      if (
-        (body.latitude > -32.8 || body.latitude < -33)
-        && body.latitude !== 0
-        && body.latitude !== -1
-      ) {
-        invalid = 2;
-      }
-      if (
-        (body.longitude > -61.1 || body.longitude < -61.3)
-        && body.longitude !== 0
-        && body.longitude !== -1
-      ) {
-        invalid = 2;
-      }
+
+      // The collar GPS has no valid fix.
       if (body.latitude === 0 && body.longitude === 0) {
         invalid = 3;
+
+      // GPS coordinates may be invalid because of RF channel noise.
+      // Keep the message because RSSI, SNR and other metadata may still
+      // be useful for analyzing the transmission.
+      } else if (body.latitude === -1 || body.longitude === -1) {
+        invalid = 1;
+
+      // For now, use a hardcoded geographic range around the gateway.
+      } else if (
+        body.latitude > -32.8
+        || body.latitude < -33
+        || body.longitude > -61.1
+        || body.longitude < -61.3
+      ) {
+        invalid = 2;
       }
 
-      const raw = {};
-      raw.collarId = body.collarId;
-      raw.latitude = body.latitude;
-      raw.longitude = body.longitude;
-      raw.location = {
-        latitude: body.latitude,
-        longitude: body.longitude,
+      const raw = {
+        ...body,
+        location: {
+          latitude: body.latitude,
+          longitude: body.longitude,
+        },
+        invalidReasonId: invalid,
+        gatewayId: req.gateway.id, // got via api key
       };
-      raw.recordedAt = body.recordedAt;
-      raw.invalidReasonId = invalid;
-
-      if (!body.recordedAt) {
-        raw.recordedAt = new Date();
-      }
-
-      if (body.speed !== undefined) {
-        raw.speed = body.speed;
-      }
-
-      if (body.altitude !== undefined) {
-        raw.altitude = body.altitude;
-      }
-
-      if (body.satellitesCount !== undefined) {
-        raw.satellitesCount = body.satellitesCount;
-      }
-
-      if (body.hdop !== undefined) {
-        raw.hdop = body.hdop;
-      }
-
-      if (body.rssi !== undefined) {
-        raw.rssi = body.rssi;
-      }
-
-      if (body.snr !== undefined) {
-        raw.snr = body.snr;
-      }
-
-      if (body.voltage !== undefined) {
-        raw.voltage = body.voltage;
-      }
-
-      if (body.crc) {
-        raw.crc = body.crc;
-      }
-
-      if (body.gatewayId) {
-        raw.gatewayId = body.gatewayId;
-      }
 
       const rawRfMessage = await rawRfMessageRepository.create(raw);
 
