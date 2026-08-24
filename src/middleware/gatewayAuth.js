@@ -10,7 +10,7 @@ export default async function gatewayAuth(req, res, next) {
   const apiKey = req.header('X-API-Key');
 
   if (!apiKey) {
-    logger.warn(`[${ip}] Invalid auth. No API_KEY`);
+    logger.debug(`[${ip}] Invalid auth. No API_KEY`);
     return res.sendStatus(401);
   }
 
@@ -22,17 +22,12 @@ export default async function gatewayAuth(req, res, next) {
     const gateway = await gatewayRepository.findByApiKeyHash(apiKeyHash);
 
     if (!gateway) {
-      logger.warn('Gateway not found');
-      // return res.sendStatus(401);
+      logger.warn(`[${ip}] Invalid auth. Gateway not found`);
+      return res.sendStatus(401);
     }
     req.gateway = gateway;
 
-    if (apiKey !== process.env.API_KEY) {
-      logger.warn(`[${ip}] Invalid auth. API_KEY incorrect`);
-      return res.sendStatus(401);
-    }
-
-    logger.info(`[${ip}] API KEY is correct. Gateway ${gateway?.id}`);
+    logger.debug(`[${ip}] API KEY is correct. Gateway ${gateway?.id}`);
 
     return next();
   } catch (err) {
