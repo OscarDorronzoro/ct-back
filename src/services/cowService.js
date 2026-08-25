@@ -134,20 +134,23 @@ const cowService = {
 
   async update(cowId, values, data) {
     let imageUrl;
-    try {
-      return db.transaction(async (tx) => {
-        // Update cow
-        const cow = await cowRepository.update(cowId, values, tx);
+    let oldImageUrl;
 
-        // Manage invalid cowId
-        if (!cow) {
+    try {
+      const cow = await db.transaction(async (tx) => {
+        // Update cow
+        const cowUpdated = await cowRepository.update(cowId, values, tx);
+
+        if (!cowUpdated) {
           throw new AppError(
             'COW_NOT_FOUND',
             404,
           );
         }
 
-        // Manage collar Assignment
+        oldImageUrl = cowUpdated.imageUrl;
+
+        // Manage collar assignment
         if (values.currentCollarId !== undefined) {
           const { currentCollarId } = values;
 
@@ -176,19 +179,34 @@ const cowService = {
 
           imageUrl = await imageService.saveCowImage(data.image);
 
-          await cowRepository.update(cow.id, { imageUrl }, tx);
-          cow.imageUrl = imageUrl;
+          await cowRepository.update(
+            cowUpdated.id,
+            { imageUrl },
+            tx,
+          );
+
+          cowUpdated.imageUrl = imageUrl;
         }
 
         // Manage group memberships
         if (data.groupIds !== undefined) {
           await validateGroups(data.groupIds, tx);
 
-          await cowGroupMembershipService.sync(cowId, data.groupIds, tx);
+          await cowGroupMembershipService.sync(
+            cowId,
+            data.groupIds,
+            tx,
+          );
         }
 
-        return cow;
+        return cowUpdated;
       });
+
+      if (imageUrl && oldImageUrl) {
+        await imageService.deleteCowImage(oldImageUrl);
+      }
+
+      return cow;
     } catch (err) {
       if (imageUrl) {
         await imageService.deleteCowImage(imageUrl);
