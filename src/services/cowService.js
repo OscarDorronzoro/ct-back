@@ -203,7 +203,15 @@ const cowService = {
       });
 
       if (imageUrl && oldImageUrl) {
-        await imageService.deleteCowImage(oldImageUrl);
+        try {
+          await imageService.deleteCowImage(oldImageUrl);
+        } catch (err) {
+          logger.error({
+            message: 'Failed to delete old cow image',
+            imageUrl: oldImageUrl,
+            error: err,
+          });
+        }
       }
 
       return cow;
