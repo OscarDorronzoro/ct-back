@@ -3,8 +3,18 @@ package-lock.json
 
 drizzle/
 dist/
-db_restore/
-scripts/
+
+db_restore/*
+!db_restore/schema.sql
+
+scripts/*
+!scripts/setup_db.sh
+
 tlscert/
+
+log/*
+!log/.gitkeep
+images/cows/*
+!images/cows/.gitkeep
 
 .env

@@ -1,9 +1,6 @@
 import express from 'express';
-import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import http from 'http';
-import https from 'https';
-import fs from 'fs';
 import cron from 'node-cron';
 
 import logger from './utils/logger';
@@ -16,9 +13,6 @@ const API_PORT = Number(process.env.PORT) || 3000;
 const API_HOST = process.env.HOST || 'localhost';
 const API_BASE_URL = '/api';
 
-const { TLS_CRT } = process.env;
-const { TLS_KEY } = process.env;
-
 // Express
 const app = express();
 
@@ -27,28 +21,13 @@ app.use(express.json({ limit: '10mb', extended: true }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
-// CORS
-const corsOptions = {
-  origin: [
-    // Dev
-    'http://localhost:5173',
-    'https://localhost:5173',
-    'http://192.168.1.41:5173',
-    'https://192.168.1.41:5173',
-    'http://dev.rastreo.vacas.inet:5173',
-    'https://dev.rastreo.vacas.inet:5173',
-
-    // Prod
-    'http://localhost',
-    'https://localhost',
-    'http://192.168.1.159',
-    'https://192.168.1.159',
-    'http://rastreo.vacas.inet',
-    'https://rastreo.vacas.inet',
-  ],
-  credentials: true,
-};
-app.use(cors(corsOptions));
+/*
+ * CORS is not required anymore because the frontend and API are served
+ * through the same origin in both development and production.
+ *
+ * Development: Vite proxies /api to the backend.
+ * Production: Nginx proxies /api to the backend.
+ */
 
 // Routes
 app.use(API_BASE_URL, routes);
@@ -63,25 +42,6 @@ const portHttp = API_PORT;
 httpServer.listen(portHttp, API_HOST, () => {
   logger.info(`Backend http listening on port ${portHttp}, host ${API_HOST}`);
 });
-
-// Serve app (HTTPS)
-let httpsServer = null;
-try {
-  // Read tls certificate
-  if (TLS_CRT && TLS_KEY) {
-    const key = fs.readFileSync(TLS_KEY, 'utf8');
-    const cert = fs.readFileSync(TLS_CRT, 'utf8');
-
-    httpsServer = https.createServer({ key, cert }, app);
-
-    const portHttps = API_PORT + 1;
-    httpsServer.listen(portHttps, API_HOST, () => {
-      logger.info(`Backend https listening on port ${portHttps}, host ${API_HOST}`);
-    });
-  }
-} catch (err) {
-  logger.warn(err, 'HTTPS server cannot be started');
-}
 
 // Jobs
 let running = false;
