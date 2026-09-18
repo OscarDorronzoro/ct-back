@@ -25,7 +25,7 @@ const rawRfMessageValidator = z.object({
   rssi: z.number().finite().optional(),
   snr: z.number().finite().optional(),
   voltage: z.number()
-    .finite().min(2).max(5)
+    .finite()// .min(2).max(5)
     .optional(),
 
   crc: z.string().optional(),

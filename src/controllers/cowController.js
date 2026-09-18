@@ -55,8 +55,8 @@ function cowController() {
       if (body.alias) {
         cow.alias = body.alias;
       }
-      if (body.birthDate) {
-        cow.birthDate = body.birthDate;
+      if (validator.parseDate(body.birthDate) !== null) {
+        cow.birthDate = validator.parseDate(body.birthDate);
       }
       if (req.file) {
         cowData.image = req.file;
@@ -112,8 +112,8 @@ function cowController() {
       if (body.alias) {
         cow.alias = body.alias;
       }
-      if (body.birthDate) {
-        cow.birthDate = body.birthDate;
+      if (validator.parseDate(body.birthDate) !== null) {
+        cow.birthDate = validator.parseDate(body.birthDate);
       }
       if (req.file) {
         cowData.image = req.file;

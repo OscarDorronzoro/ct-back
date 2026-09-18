@@ -16,6 +16,15 @@ function parsePositiveInteger(value) {
   return number;
 }
 
+function parseDate(value) {
+  const dateValue = new Date(value);
+  if (Number.isNaN(dateValue.getTime())) {
+    return null;
+  }
+
+  return dateValue;
+}
+
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -55,6 +64,7 @@ const validator = {
   isPositiveIntegerArray,
   parseRole,
   escapeLike,
+  parseDate,
 };
 
 export default validator;
