@@ -1,12 +1,13 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import http from 'http';
-import cron from 'node-cron';
 
 import logger from './utils/logger';
 import routes from './routes';
-import processPendingMessages from './jobs/processRawRfJob';
 import errorHandler from './middleware/errorHandler';
+
+import startProcessPendingMessagesJob from './jobs/startProcessPendingMessagesJob';
+import startImageCleanupJob from './jobs/startImageCleanupJob';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -44,34 +45,8 @@ httpServer.listen(portHttp, API_HOST, () => {
 });
 
 // Jobs
-let running = false;
-const jobProcessMessages = cron.schedule('*/5 * * * * *', async () => {
-  if (running) {
-    logger.warn('Job already running');
-    return;
-  }
+startProcessPendingMessagesJob();
 
-  running = true;
-
-  try {
-    await processPendingMessages();
-  } finally {
-    running = false;
-  }
-});
-
-jobProcessMessages.on('execution:missed', (ctx) => {
-  logger.warn({
-    message: 'processPendingMessages execution missed',
-    execution: ctx.execution,
-  });
-});
-
-jobProcessMessages.on('execution:failed', (ctx) => {
-  logger.error({
-    message: 'processPendingMessages an error ocurred',
-    execution: ctx.execution,
-  });
-});
+startImageCleanupJob();
 
 export default app;
