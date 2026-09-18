@@ -10,6 +10,8 @@ import cowGroupMembershipService from './cowGroupMembershipService';
 import groupRepository from '../repositories/groupRepository';
 import cowGroupMembershipRepository from '../repositories/cowGroupMembershipRepository';
 
+import logger from '../utils/logger';
+
 async function validateGroups(groupIds, tx) {
   if (groupIds.length === 0) {
     return;
@@ -25,6 +27,30 @@ async function validateGroups(groupIds, tx) {
 
   if (groupIds.length !== groups.length) {
     throw new AppError('GROUP_NOT_FOUND', 404);
+  }
+}
+
+async function deleteImageOrRegisterOrphan(imageUrl, cowId) {
+  try {
+    await imageService.deleteCowImage(imageUrl);
+  } catch (err) {
+    logger.error({
+      message: 'Failed to delete cow image',
+      imageUrl,
+      cowId,
+      error: err,
+    });
+
+    try {
+      await imageService.registerOrphanImage(imageUrl, cowId, err);
+    } catch (registerErr) {
+      logger.error({
+        message: 'Failed to register orphan image',
+        imageUrl,
+        cowId,
+        error: registerErr,
+      });
+    }
   }
 }
 
@@ -203,21 +229,13 @@ const cowService = {
       });
 
       if (imageUrl && oldImageUrl) {
-        try {
-          await imageService.deleteCowImage(oldImageUrl);
-        } catch (err) {
-          logger.error({
-            message: 'Failed to delete old cow image',
-            imageUrl: oldImageUrl,
-            error: err,
-          });
-        }
+        await deleteImageOrRegisterOrphan(oldImageUrl, cowId);
       }
 
       return cow;
     } catch (err) {
       if (imageUrl) {
-        await imageService.deleteCowImage(imageUrl);
+        await deleteImageOrRegisterOrphan(imageUrl, cowId);
       }
 
       throw err;
