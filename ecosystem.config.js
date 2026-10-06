@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'ct-back',
-      script: './dist/app.js',
+      script: './dist/bootstrap.js',
       cwd: "/var/www/collar_project/backend",
       autorestart: true,
       max_restarts: 10,
