@@ -1,15 +1,28 @@
 import cowService from '../services/cowService';
-import validator from '../utils/validator';
+
+// Validated form -> cow columns, and what cowService handles apart (image, groups)
+function splitCowForm(form, file) {
+  const { groupIds, removeImage, ...cow } = form;
+  const cowData = {};
+
+  if (groupIds !== undefined) {
+    cowData.groupIds = groupIds;
+  }
+
+  // A new image replaces the old one; removeImage only applies without one
+  if (file) {
+    cowData.image = file;
+  } else if (removeImage) {
+    cowData.image = null;
+  }
+
+  return { cow, cowData };
+}
 
 function cowController() {
   async function get(req, res, next) {
     try {
-      const cowId = validator.parsePositiveInteger(req.params.cowId);
-
-      if (cowId === null) {
-        return res.status(400)
-          .json({ error: 'id required' });
-      }
+      const { cowId } = req.validated.params;
 
       const cow = await cowService.get(cowId);
 
@@ -38,43 +51,11 @@ function cowController() {
 
   async function post(req, res, next) {
     try {
-      const { body } = req;
+      const { cow, cowData } = splitCowForm(req.validated.body, req.file);
 
-      const cow = {};
-      const cowData = {};
-
-      if (body.breedId) {
-        cow.breedId = body.breedId;
-      }
-      if (body.currentCollarId !== undefined) {
-        cow.currentCollarId = body.currentCollarId;
-      }
-      if (body.earTag) {
-        cow.earTag = body.earTag;
-      }
-      if (body.alias) {
-        cow.alias = body.alias;
-      }
-      if (validator.parseDate(body.birthDate) !== null) {
-        cow.birthDate = validator.parseDate(body.birthDate);
-      }
-      if (req.file) {
-        cowData.image = req.file;
-      }
-
-      if (Object.hasOwn(body, 'groupIds')) {
-        if (!Array.isArray(body.groupIds)) {
-          return res.status(400)
-            .json({ error: 'groupIds must be an array' });
-        }
-
-        const groupIds = body.groupIds.map(Number);
-        if (groupIds.some((id) => !Number.isInteger(id) || id <= 0)) {
-          return res.status(400)
-            .json({ error: 'groupIds must only contain positive integers' });
-        }
-
-        cowData.groupIds = [...new Set(groupIds)];
+      // New cow: without a collar unless one is chosen
+      if (cow.currentCollarId === null) {
+        delete cow.currentCollarId;
       }
 
       const cowCreated = await cowService.create(cow, cowData);
@@ -87,52 +68,11 @@ function cowController() {
   }
 
   async function put(req, res, next) {
-    const cowId = validator.parsePositiveInteger(req.params.cowId);
-
-    if (cowId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { cowId } = req.validated.params;
 
     try {
-      const { body } = req;
-
-      const cow = {};
-      const cowData = {};
-
-      if (validator.parsePositiveInteger(body.breedId)) {
-        cow.breedId = validator.parsePositiveInteger(body.breedId);
-      }
-      if (body.currentCollarId !== undefined) {
-        cow.currentCollarId = validator.parsePositiveInteger(body.currentCollarId);
-      }
-      if (body.earTag) {
-        cow.earTag = body.earTag;
-      }
-      if (body.alias) {
-        cow.alias = body.alias;
-      }
-      if (validator.parseDate(body.birthDate) !== null) {
-        cow.birthDate = validator.parseDate(body.birthDate);
-      }
-      if (req.file) {
-        cowData.image = req.file;
-      }
-
-      if (Object.hasOwn(body, 'groupIds')) {
-        if (!Array.isArray(body.groupIds)) {
-          return res.status(400)
-            .json({ error: 'groupIds must be an array' });
-        }
-
-        const groupIds = body.groupIds.map(Number);
-        if (groupIds.some((id) => !Number.isInteger(id) || id <= 0)) {
-          return res.status(400)
-            .json({ error: 'groupIds must only contain positive integers' });
-        }
-
-        cowData.groupIds = [...new Set(groupIds)];
-      }
+      // currentCollarId null: unassign the current collar
+      const { cow, cowData } = splitCowForm(req.validated.body, req.file);
 
       cow.updatedAt = new Date();
 
@@ -146,12 +86,7 @@ function cowController() {
   }
 
   async function del(req, res, next) {
-    const cowId = validator.parsePositiveInteger(req.params.cowId);
-
-    if (cowId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { cowId } = req.validated.params;
 
     try {
       const cow = await cowService.delete(cowId);

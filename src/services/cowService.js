@@ -105,20 +105,13 @@ const cowService = {
     let imageUrl;
 
     try {
-      return db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         // Create cow
         const cowCreated = await cowRepository.create(cow, tx);
 
         // Manage collar assingment
         if (cow.currentCollarId !== undefined) {
           const { currentCollarId } = cow;
-
-          if (currentCollarId === null) {
-            throw new AppError(
-              'REMOVE_COLLAR_UNIMPLEMENTED',
-              400,
-            );
-          }
 
           const collar = await collarRepository.findById(currentCollarId, tx);
           if (!collar) {
@@ -149,9 +142,11 @@ const cowService = {
 
         return cowCreated;
       });
+
+      return created;
     } catch (err) {
       if (imageUrl) {
-        await imageService.deleteCowImage(imageUrl);
+        await deleteImageOrRegisterOrphan(imageUrl, null);
       }
 
       throw err;
@@ -161,6 +156,7 @@ const cowService = {
   async update(cowId, values, data) {
     let imageUrl;
     let oldImageUrl;
+    let imageRemoved = false;
 
     try {
       const cow = await db.transaction(async (tx) => {
@@ -181,37 +177,35 @@ const cowService = {
           const { currentCollarId } = values;
 
           if (currentCollarId === null) {
-            throw new AppError(
-              'REMOVE_COLLAR_UNIMPLEMENTED',
-              400,
+            await cowCollarAssignmentService.closeByCow(cowId, new Date(), tx);
+          } else {
+            await cowCollarAssignmentService.assign(
+              cowId,
+              currentCollarId,
+              tx,
             );
           }
-
-          await cowCollarAssignmentService.assign(
-            cowId,
-            currentCollarId,
-            tx,
-          );
         }
 
         // Manage image
         if (data.image !== undefined) {
           if (data.image === null) {
-            throw new AppError(
-              'REMOVE_IMAGE_UNIMPLEMENTED',
-              400,
+            if (oldImageUrl) {
+              await cowRepository.update(cowUpdated.id, { imageUrl: null }, tx);
+              cowUpdated.imageUrl = null;
+              imageRemoved = true;
+            }
+          } else {
+            imageUrl = await imageService.saveCowImage(data.image);
+
+            await cowRepository.update(
+              cowUpdated.id,
+              { imageUrl },
+              tx,
             );
+
+            cowUpdated.imageUrl = imageUrl;
           }
-
-          imageUrl = await imageService.saveCowImage(data.image);
-
-          await cowRepository.update(
-            cowUpdated.id,
-            { imageUrl },
-            tx,
-          );
-
-          cowUpdated.imageUrl = imageUrl;
         }
 
         // Manage group memberships
@@ -228,7 +222,8 @@ const cowService = {
         return cowUpdated;
       });
 
-      if (imageUrl && oldImageUrl) {
+      // The file goes once the database no longer points to it
+      if (oldImageUrl && (imageUrl || imageRemoved)) {
         await deleteImageOrRegisterOrphan(oldImageUrl, cowId);
       }
 
