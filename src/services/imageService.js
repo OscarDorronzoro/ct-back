@@ -96,7 +96,7 @@ const imageService = {
     const filename = imageUrl.slice(prefix.length);
 
     if (!/^\d+_[0-9a-f-]+\.webp$/i.test(filename)) {
-      throw new Error('INVALID_IMAGE', 400);
+      throw new AppError('INVALID_IMAGE', 400);
     }
 
     const filepath = path.join(
