@@ -6,7 +6,10 @@ function errorHandler(err, req, res, next) {
   if (err instanceof AppError) {
     return res
       .status(err.httpStatus)
-      .json({ error: err.code });
+      .json({
+        error: err.code,
+        ...(err.message !== err.code && { message: err.message }),
+      });
   }
 
   logger.error(err);
