@@ -1,16 +1,10 @@
 import breedRepository from '../repositories/breedRepository';
 import breedService from '../services/breedService';
-import validator from '../utils/validator';
 
 function breedController() {
   async function get(req, res, next) {
     try {
-      const breedId = validator.parsePositiveInteger(req.params.breedId);
-
-      if (breedId === null) {
-        return res.status(400)
-          .json({ error: 'id required' });
-      }
+      const { breedId } = req.validated.params;
 
       const breed = await breedRepository.findById(breedId);
 
@@ -39,15 +33,7 @@ function breedController() {
 
   async function post(req, res, next) {
     try {
-      const { body } = req;
-
-      const breed = {};
-
-      if (!validator.isNonEmptyString(body.name)) {
-        return res.status(400)
-          .json({ error: 'name is required' });
-      }
-      breed.name = body.name.trim();
+      const breed = { name: req.validated.body.name };
 
       const breedCreated = await breedService.create(breed);
 
@@ -59,25 +45,13 @@ function breedController() {
   }
 
   async function put(req, res, next) {
-    const breedId = validator.parsePositiveInteger(req.params.breedId);
-
-    if (breedId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { breedId } = req.validated.params;
 
     try {
-      const { body } = req;
-
-      const values = {};
-
-      if (!validator.isNonEmptyString(body.name)) {
-        return res.status(400)
-          .json({ error: 'name is required' });
-      }
-      values.name = body.name.trim();
-
-      values.updatedAt = new Date();
+      const values = {
+        name: req.validated.body.name,
+        updatedAt: new Date(),
+      };
 
       const breed = await breedService.update(breedId, values);
 
@@ -88,12 +62,7 @@ function breedController() {
   }
 
   async function del(req, res, next) {
-    const breedId = validator.parsePositiveInteger(req.params.breedId);
-
-    if (breedId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { breedId } = req.validated.params;
 
     try {
       await breedService.delete(breedId);

@@ -1,17 +1,9 @@
 import searchService from '../services/searchService';
-import validator from '../utils/validator';
 
 function searchController() {
   async function get(req, res, next) {
     try {
-      const query = req.query.q;
-
-      if (!validator.isNonEmptyString(query)) {
-        return res.status(400)
-          .json({ error: 'q is required' });
-      }
-
-      const results = await searchService.search(query);
+      const results = await searchService.search(req.validated.query.q);
 
       return res.status(200)
         .json({ results });

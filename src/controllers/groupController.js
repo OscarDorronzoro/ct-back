@@ -1,15 +1,9 @@
 import groupRepository from '../repositories/groupRepository';
-import validator from '../utils/validator';
 
 function groupController() {
   async function get(req, res, next) {
     try {
-      const groupId = validator.parsePositiveInteger(req.params.groupId);
-
-      if (groupId === null) {
-        return res.status(400)
-          .json({ error: 'id required' });
-      }
+      const { groupId } = req.validated.params;
 
       const group = await groupRepository.findById(groupId);
 
@@ -38,17 +32,8 @@ function groupController() {
 
   async function post(req, res, next) {
     try {
-      const { body } = req;
-
-      const g = {};
-
-      if (body.name) {
-        g.name = body.name;
-      }
-
-      if (body.description) {
-        g.description = body.description;
-      }
+      const { name, description } = req.validated.body;
+      const g = { name, description };
 
       const groupCreated = await groupRepository.create(g);
 
@@ -60,25 +45,11 @@ function groupController() {
   }
 
   async function put(req, res, next) {
-    const groupId = validator.parsePositiveInteger(req.params.groupId);
-
-    if (groupId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { groupId } = req.validated.params;
 
     try {
-      const { body } = req;
-
-      const g = {};
-
-      if (body.name) {
-        g.name = body.name;
-      }
-
-      if (body.description) {
-        g.description = body.description;
-      }
+      const { name, description } = req.validated.body;
+      const g = { name, description };
 
       const group = await groupRepository.update(groupId, g);
 
@@ -95,12 +66,7 @@ function groupController() {
   }
 
   async function del(req, res, next) {
-    const groupId = validator.parsePositiveInteger(req.params.groupId);
-
-    if (groupId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { groupId } = req.validated.params;
 
     try {
       const group = await groupRepository.delete(groupId);

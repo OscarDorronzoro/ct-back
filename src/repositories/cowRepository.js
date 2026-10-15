@@ -6,7 +6,7 @@ import {
 import db from '../db/drizzle';
 import cows from '../schema/cows';
 import buildConditions from '../utils/buildConditions';
-import validator from '../utils/validator';
+import escapeLike from '../utils/escapeLike';
 import unaccentIlike from '../utils/unaccentIlike';
 
 const cowRepository = {
@@ -74,7 +74,7 @@ const cowRepository = {
   },
 
   async search(query, tx = db) {
-    const escapedQuery = validator.escapeLike(query);
+    const escapedQuery = escapeLike(query);
     const pattern = `%${escapedQuery}%`;
 
     const conditions = [
