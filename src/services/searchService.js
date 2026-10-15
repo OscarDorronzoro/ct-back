@@ -20,7 +20,8 @@ const searchService = {
       ...collars.map((collar) => ({
         type: 'collar',
         id: collar.id,
-        label: `Collar #${collar.id}`,
+        // code: LoRa id shown everywhere in the app (null until the collar joins)
+        label: `Collar ${collar.code ?? `#${collar.id}`}`,
         description: collar.description || null,
       })),
     ];

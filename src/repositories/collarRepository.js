@@ -1,12 +1,12 @@
 import {
   eq, and, or,
-  isNull,
+  isNull, inArray,
 } from 'drizzle-orm';
 
 import db from '../db/drizzle';
 import collars from '../schema/collars';
 import buildConditions from '../utils/buildConditions';
-import validator from '../utils/validator';
+import escapeLike from '../utils/escapeLike';
 import unaccentIlike from '../utils/unaccentIlike';
 
 const collarRepository = {
@@ -38,6 +38,64 @@ const collarRepository = {
       ));
 
     return result[0] ?? null;
+  },
+
+  // Deleted included: historic positions keep their collar
+  async findByIdWithDeleted(id, tx = db) {
+    const [result] = await tx
+      .select()
+      .from(collars)
+      .where(eq(collars.id, id));
+
+    return result ?? null;
+  },
+
+  async findByIds(ids, tx = db) {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return tx
+      .select()
+      .from(collars)
+      .where(and(
+        inArray(collars.id, ids),
+        isNull(collars.deletedAt),
+      ));
+  },
+
+  async findByCode(code, tx = db) {
+    const [result] = await tx
+      .select()
+      .from(collars)
+      .where(and(
+        eq(collars.code, code),
+        isNull(collars.deletedAt),
+      ));
+
+    return result ?? null;
+  },
+
+  async findByMac(mac, tx = db) {
+    const [result] = await tx
+      .select()
+      .from(collars)
+      .where(and(
+        eq(collars.mac, mac),
+        isNull(collars.deletedAt),
+      ));
+
+    return result ?? null;
+  },
+
+  // Codes of every collar, deleted included
+  async findAllCodes(tx = db) {
+    return tx
+      .select({
+        code: collars.code,
+        deletedAt: collars.deletedAt,
+      })
+      .from(collars);
   },
 
   async create(collar, tx = db) {
@@ -74,7 +132,7 @@ const collarRepository = {
   },
 
   async search(query, tx = db) {
-    const escapedQuery = validator.escapeLike(query);
+    const escapedQuery = escapeLike(query);
     const pattern = `%${escapedQuery}%`;
 
     const conditions = [
@@ -85,6 +143,10 @@ const collarRepository = {
 
     if (Number.isInteger(id) && id > 0) {
       conditions.push(eq(collars.id, id));
+
+      if (id <= 255) {
+        conditions.push(eq(collars.code, id));
+      }
     }
 
     return tx

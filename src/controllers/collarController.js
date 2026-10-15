@@ -1,16 +1,10 @@
 import collarRepository from '../repositories/collarRepository';
 import collarService from '../services/collarService';
-import validator from '../utils/validator';
 
 function collarController() {
   async function get(req, res, next) {
     try {
-      const collarId = validator.parsePositiveInteger(req.params.collarId);
-
-      if (collarId === null) {
-        return res.status(400)
-          .json({ error: 'id required' });
-      }
+      const { collarId } = req.validated.params;
 
       const collar = await collarRepository.findById(collarId);
 
@@ -39,22 +33,10 @@ function collarController() {
 
   async function post(req, res, next) {
     try {
-      const { body } = req;
+      // { code?, mac?, firmwareVersion?, description? }, normalized
+      const values = { ...req.validated.body };
 
-      const c = {};
-
-      if (!body.firmwareVersion) {
-        return res.status(400)
-          .json({ error: 'firmwareVersion is required' });
-      }
-
-      c.firmwareVersion = body.firmwareVersion;
-
-      if (body.description) {
-        c.description = body.description;
-      }
-
-      const collarCreated = await collarRepository.create(c);
+      const collarCreated = await collarService.create(values);
 
       return res.status(201)
         .json({ collar: collarCreated });
@@ -64,27 +46,14 @@ function collarController() {
   }
 
   async function put(req, res, next) {
-    const collarId = validator.parsePositiveInteger(req.params.collarId);
-
-    if (collarId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { collarId } = req.validated.params;
 
     try {
-      const { body } = req;
+      const values = { ...req.validated.body };
 
-      const c = {};
+      values.updatedAt = new Date();
 
-      if (body.firmwareVersion) {
-        c.firmwareVersion = body.firmwareVersion;
-      }
-
-      if (body.description) {
-        c.description = body.description;
-      }
-
-      const collar = await collarRepository.update(collarId, c);
+      const collar = await collarService.update(collarId, values);
 
       if (!collar) {
         return res.status(404)
@@ -99,12 +68,7 @@ function collarController() {
   }
 
   async function del(req, res, next) {
-    const collarId = validator.parsePositiveInteger(req.params.collarId);
-
-    if (collarId === null) {
-      return res.status(400)
-        .json({ error: 'id required' });
-    }
+    const { collarId } = req.validated.params;
 
     try {
       const collar = await collarService.delete(collarId);
