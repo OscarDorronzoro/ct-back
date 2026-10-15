@@ -1,3 +1,4 @@
+import './config/umask';
 import './config/env';
 import logger from './utils/logger';
 
