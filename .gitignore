@@ -18,3 +18,5 @@ images/cows/*
 !images/cows/.gitkeep
 
 .env
+firmwares/*
+!firmwares/.gitkeep
