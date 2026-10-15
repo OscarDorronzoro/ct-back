@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 
 import db from '../db/drizzle';
 import userRepository from '../repositories/userRepository';
+import userSessionRepository from '../repositories/userSessionRepository';
 import AppError from '../errors/AppError';
 
 const SALT_ROUNDS = 12;
@@ -33,7 +34,8 @@ const userService = {
     });
   },
 
-  async update(userId, values, authenticatedUserRole) {
+  // currentSessionId: the caller's session, kept when they change their own password
+  async update(userId, values, authenticatedUserRole, currentSessionId = null) {
     return db.transaction(async (tx) => {
       const user = await userRepository.findById(userId, tx);
 
@@ -55,6 +57,14 @@ const userService = {
         data.password = await bcrypt.hash(
           data.password,
           SALT_ROUNDS,
+        );
+
+        // New password: whoever had the old one gets logged out everywhere
+        await userSessionRepository.revokeAllForUser(
+          userId,
+          'password',
+          { exceptId: currentSessionId },
+          tx,
         );
       }
 

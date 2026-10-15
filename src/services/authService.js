@@ -4,12 +4,16 @@ import crypto from 'crypto';
 
 import userRepository from '../repositories/userRepository';
 import refreshTokenRepository from '../repositories/refreshTokenRepository';
+import userSessionRepository from '../repositories/userSessionRepository';
 import db from '../db/drizzle';
+import logger from '../utils/logger';
 
 import AppError from '../errors/AppError';
 
 const ACCESS_TOKEN_EXPIRES_IN = '15m';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
+// A rotated token presented within this window is a concurrent refresh (two tabs), not a copy
+const ROTATION_GRACE_MS = 30 * 1000;
 const DUMMY_HASH = '$2b$12$dbDSd3dRnzOmUDPyya3OROLI8Uw73tKVG8sUhhVZkzi5eFVoWstjC';
 
 function generateRefreshToken() {
@@ -23,7 +27,8 @@ function hashRefreshToken(token) {
     .digest('hex');
 }
 
-function generateAccessToken(user) {
+// sid: session of the token. A revoked session ends at the next refresh; this one just expires.
+function generateAccessToken(user, sessionId) {
   const { JWT_SECRET } = process.env;
 
   if (!JWT_SECRET) {
@@ -34,6 +39,7 @@ function generateAccessToken(user) {
     {
       sub: user.id,
       role: user.role,
+      sid: sessionId,
     },
     JWT_SECRET,
     {
@@ -52,9 +58,25 @@ function getRefreshTokenExpiration() {
   return expiresAt;
 }
 
+// New refresh token for a session; returns the plain token (only its hash is stored)
+async function issueRefreshToken(session, ip, tx) {
+  const refreshToken = generateRefreshToken();
+
+  await refreshTokenRepository.create({
+    userId: session.userId,
+    sessionId: session.id,
+    tokenHash: hashRefreshToken(refreshToken),
+    ip,
+    expiresAt: getRefreshTokenExpiration(),
+  }, tx);
+
+  return refreshToken;
+}
+
 const authService = {
 
-  async login(userLoggingIn) {
+  // client: { ip, userAgent } of the request (see utils/requestInfo)
+  async login(userLoggingIn, client) {
     const user = await userRepository.findByUsername(userLoggingIn.username);
 
     const valid = await bcrypt.compare(userLoggingIn.password, user?.password ?? DUMMY_HASH);
@@ -63,19 +85,22 @@ const authService = {
       return null;
     }
 
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = hashRefreshToken(refreshToken);
-    const refreshTokenExpiration = getRefreshTokenExpiration();
+    const { session, refreshToken } = await db.transaction(async (tx) => {
+      const created = await userSessionRepository.create({
+        userId: user.id,
+        createdIp: client.ip,
+        lastIp: client.ip,
+        userAgent: client.userAgent,
+      }, tx);
 
-    await refreshTokenRepository.create({
-      userId: user.id,
-      tokenHash: refreshTokenHash,
-      expiresAt: refreshTokenExpiration,
+      return {
+        session: created,
+        refreshToken: await issueRefreshToken(created, client.ip, tx),
+      };
     });
 
     return {
-      accessToken,
+      accessToken: generateAccessToken(user, session.id),
       refreshToken,
       user: {
         id: user.id,
@@ -84,75 +109,89 @@ const authService = {
     };
   },
 
-  async refresh(refreshToken) {
-    const tokenHash = hashRefreshToken(refreshToken);
+  // Returns { status: 'ok', accessToken, refreshToken }, { status: 'concurrent' } (another request
+  // just rotated this token: the client already has the new one) or null (invalid: log in again).
+  async refresh(refreshToken, client) {
+    const found = await refreshTokenRepository.findByTokenHash(hashRefreshToken(refreshToken));
 
-    const storedToken = await refreshTokenRepository.findByTokenHash(tokenHash);
-
-    if (!storedToken) {
+    if (!found) {
       return null;
     }
 
+    const { token, session } = found;
     const now = new Date();
-    if (storedToken.revokedAt !== null
-      || storedToken.expiresAt <= now
-    ) {
+
+    if (session.revokedAt !== null || token.expiresAt <= now) {
       return null;
     }
 
-    const user = await userRepository.findById(
-      storedToken.userId,
-    );
+    if (token.rotatedAt !== null) {
+      if (now - token.rotatedAt <= ROTATION_GRACE_MS) {
+        return { status: 'concurrent' };
+      }
+
+      // Rotated long ago and presented again: someone has a copy. End the whole session,
+      // for the thief and for the legitimate client.
+      await userSessionRepository.revoke(session.id, 'reuse');
+
+      logger.warn({
+        message: 'Refresh token reuse detected, session revoked',
+        userId: session.userId,
+        sessionId: session.id,
+        ip: client.ip,
+      });
+
+      return null;
+    }
+
+    const user = await userRepository.findById(session.userId);
 
     if (!user) {
       return null;
     }
 
-    const newAccessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken();
-    const newRefreshTokenHash = hashRefreshToken(newRefreshToken);
-    const newRefreshTokenExpiration = getRefreshTokenExpiration();
+    const newRefreshToken = await db.transaction(async (tx) => {
+      const rotated = await refreshTokenRepository.markRotated(token.id, now, tx);
 
-    await db.transaction(async (tx) => {
-      await refreshTokenRepository.revoke(
-        storedToken.id,
-        now,
-        tx,
-      );
+      // Lost the race against a concurrent refresh with the same token
+      if (!rotated) {
+        return null;
+      }
 
-      await refreshTokenRepository.create(
-        {
-          userId: user.id,
-          tokenHash: newRefreshTokenHash,
-          expiresAt: newRefreshTokenExpiration,
-        },
-        tx,
-      );
+      await userSessionRepository.touch(session.id, client, tx);
+
+      return issueRefreshToken(session, client.ip, tx);
     });
 
+    if (!newRefreshToken) {
+      return { status: 'concurrent' };
+    }
+
     return {
-      accessToken: newAccessToken,
+      status: 'ok',
+      accessToken: generateAccessToken(user, session.id),
       refreshToken: newRefreshToken,
     };
   },
 
   async logout(refreshToken) {
-    const tokenHash = hashRefreshToken(refreshToken);
+    const found = await refreshTokenRepository.findByTokenHash(hashRefreshToken(refreshToken));
 
-    const storedToken = await refreshTokenRepository.findByTokenHash(tokenHash);
-
-    if (!storedToken) {
+    if (!found) {
       return;
     }
 
-    if (storedToken.revokedAt !== null) {
-      return;
-    }
+    await userSessionRepository.revoke(found.session.id, 'logout');
+  },
 
-    await refreshTokenRepository.revoke(
-      storedToken.id,
-      new Date(),
-    );
+  // Weekly job: expired tokens, then the sessions left without any
+  async cleanup() {
+    return db.transaction(async (tx) => {
+      const tokens = await refreshTokenRepository.deleteExpired(new Date(), tx);
+      const sessions = await userSessionRepository.deleteWithoutTokens(tx);
+
+      return { tokens, sessions };
+    });
   },
 
   async getCurrentUser(userId) {

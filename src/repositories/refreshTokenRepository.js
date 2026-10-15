@@ -1,7 +1,10 @@
-import { eq, lt } from 'drizzle-orm';
+import {
+  and, eq, lt, isNull,
+} from 'drizzle-orm';
 
 import db from '../db/drizzle';
 import refreshTokens from '../schema/refreshTokens';
+import userSessions from '../schema/userSessions';
 
 const refreshTokenRepository = {
   async create(values, tx = db) {
@@ -13,35 +16,39 @@ const refreshTokenRepository = {
     return refreshToken;
   },
 
+  // Token with its session ({ token, session })
   async findByTokenHash(tokenHash, tx = db) {
-    const [refreshToken] = await tx
-      .select()
+    const [row] = await tx
+      .select({ token: refreshTokens, session: userSessions })
       .from(refreshTokens)
+      .innerJoin(userSessions, eq(userSessions.id, refreshTokens.sessionId))
       .where(eq(refreshTokens.tokenHash, tokenHash));
 
-    return refreshToken ?? null;
+    return row ?? null;
   },
 
-  async revoke(id, revokedAt = new Date(), tx = db) {
+  // Only one caller wins: concurrent refreshes with the same token get null
+  async markRotated(id, rotatedAt, tx = db) {
     const [refreshToken] = await tx
       .update(refreshTokens)
-      .set({
-        revokedAt,
-      })
-      .where(eq(refreshTokens.id, id))
+      .set({ rotatedAt })
+      .where(and(
+        eq(refreshTokens.id, id),
+        isNull(refreshTokens.rotatedAt),
+      ))
       .returning();
 
     return refreshToken ?? null;
   },
 
-  async deleteExpired(tx = db) {
-    const now = new Date();
-
-    return tx
+  // Expired tokens, rotated or not (rotated ones are kept until then to detect reuse)
+  async deleteExpired(now = new Date(), tx = db) {
+    const deleted = await tx
       .delete(refreshTokens)
-      .where(
-        lt(refreshTokens.expiresAt, now),
-      );
+      .where(lt(refreshTokens.expiresAt, now))
+      .returning({ id: refreshTokens.id });
+
+    return deleted.length;
   },
 };
 

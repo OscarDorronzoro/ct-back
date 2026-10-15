@@ -1,16 +1,10 @@
 import userService from '../services/userService';
-import ROLES from '../utils/roles';
-import validator from '../utils/validator';
+import sessionService from '../services/sessionService';
 
 function userController() {
   async function get(req, res, next) {
     try {
-      const userId = validator.parsePositiveInteger(req.params.userId);
-
-      if (userId === null) {
-        return res.status(400)
-          .json({ error: 'invalid userId' });
-      }
+      const { userId } = req.validated.params;
 
       const user = await userService.get(userId);
 
@@ -33,37 +27,8 @@ function userController() {
 
   async function post(req, res, next) {
     try {
-      const { body } = req;
-      const authenticatedUser = req.user;
-      const user = {};
-
-      if (!validator.isNonEmptyString(body.username)) {
-        return res.status(400)
-          .json({ error: 'username required' });
-      }
-
-      if (!validator.isNonEmptyString(body.password)) {
-        return res.status(400)
-          .json({ error: 'password required' });
-      }
-
-      user.username = body.username;
-      user.password = body.password;
-
-      user.role = ROLES.VIEWER;
-
-      if (body.role !== undefined) {
-        const role = validator.parseRole(body.role);
-
-        if (role === null) {
-          return res.status(400)
-            .json({ error: 'invalid role' });
-        }
-
-        user.role = role;
-      }
-
-      const userCreated = await userService.create(user, authenticatedUser.role);
+      // { username, password, role } (role defaults to VIEWER)
+      const userCreated = await userService.create(req.validated.body, req.user.role);
 
       return res.status(201)
         .json({ user: userCreated });
@@ -74,39 +39,16 @@ function userController() {
 
   async function put(req, res, next) {
     const authenticatedUser = req.user;
-    const userId = validator.parsePositiveInteger(req.params.userId);
-
-    if (userId === null) {
-      return res.status(400)
-        .json({ error: 'invalid userId' });
-    }
+    const { userId } = req.validated.params;
 
     try {
-      const { body } = req;
-
-      const user = {};
-
-      if (body.password !== undefined) {
-        if (!validator.isNonEmptyString(body.password)) {
-          return res.status(400)
-            .json({ error: 'invalid password' });
-        }
-
-        user.password = body.password;
-      }
-
-      if (body.role !== undefined) {
-        const role = validator.parseRole(body.role);
-
-        if (role === null) {
-          return res.status(400)
-            .json({ error: 'invalid role' });
-        }
-
-        user.role = role;
-      }
-
-      const userUpdated = await userService.update(userId, user, authenticatedUser.role);
+      // { password?, role? }
+      const userUpdated = await userService.update(
+        userId,
+        req.validated.body,
+        authenticatedUser.role,
+        authenticatedUser.sid,
+      );
 
       return res.status(200)
         .json({ user: userUpdated });
@@ -117,17 +59,48 @@ function userController() {
 
   async function del(req, res, next) {
     const authenticatedUser = req.user;
-    const userId = validator.parsePositiveInteger(req.params.userId);
-
-    if (userId === null) {
-      return res.status(400)
-        .json({ error: 'invalid userId' });
-    }
+    const { userId } = req.validated.params;
 
     try {
       await userService.delete(userId, authenticatedUser.role);
 
       return res.status(204).send();
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  async function getSessions(req, res, next) {
+    try {
+      const { userId } = req.validated.params;
+
+      const sessions = await sessionService.getActive(userId, req.user);
+
+      return res.status(200).json(sessions);
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  async function delSession(req, res, next) {
+    try {
+      const { userId, sessionId } = req.validated.params;
+
+      await sessionService.revoke(userId, sessionId, req.user);
+
+      return res.status(204).send();
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  async function delSessions(req, res, next) {
+    try {
+      const { userId } = req.validated.params;
+
+      const revoked = await sessionService.revokeAll(userId, req.user);
+
+      return res.status(200).json({ revoked });
     } catch (err) {
       return next(err);
     }
@@ -139,6 +112,9 @@ function userController() {
     post,
     put,
     del,
+    getSessions,
+    delSession,
+    delSessions,
   };
 }
 

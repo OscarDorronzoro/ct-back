@@ -1,5 +1,6 @@
 import authService from '../services/authService';
-import validator from '../utils/validator';
+import requestInfo from '../utils/requestInfo';
+import { refreshTokenCookie } from '../validators/authValidator';
 
 const ACCESS_TOKEN_COOKIE = 'auth_token';
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
@@ -16,23 +17,10 @@ function cookieOptions(maxAge) {
 function authController() {
   async function login(req, res, next) {
     try {
-      const { body } = req;
+      const { username, password } = req.validated.body;
+      const user = { username, password };
 
-      if (!validator.isNonEmptyString(body.username)) {
-        return res.status(400)
-          .json({ error: 'username required' });
-      }
-
-      if (!validator.isNonEmptyString(body.password)) {
-        return res.status(400)
-          .json({ error: 'password required' });
-      }
-
-      const user = {};
-      user.username = body.username;
-      user.password = body.password;
-
-      const loggedUser = await authService.login(user);
+      const loggedUser = await authService.login(user, requestInfo(req));
 
       if (!loggedUser) {
         return res.status(401)
@@ -64,12 +52,20 @@ function authController() {
     try {
       const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
 
-      if (!validator.isNonEmptyString(refreshToken)) {
+      if (!refreshTokenCookie.safeParse(refreshToken).success) {
         return res.status(401)
           .json({ error: 'Invalid refresh token' });
       }
 
-      const tokens = await authService.refresh(refreshToken);
+      const tokens = await authService.refresh(refreshToken, requestInfo(req));
+
+      // Another request (other tab) rotated it a moment ago and got the new cookies: nothing to do,
+      // and clearing the cookies here would log that one out
+      if (tokens?.status === 'concurrent') {
+        return res.status(200).json({
+          message: 'Token already refreshed',
+        });
+      }
 
       if (!tokens) {
         res.clearCookie(ACCESS_TOKEN_COOKIE);
@@ -103,7 +99,7 @@ function authController() {
     try {
       const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
 
-      if (validator.isNonEmptyString(refreshToken)) {
+      if (refreshTokenCookie.safeParse(refreshToken).success) {
         await authService.logout(refreshToken);
       }
 
