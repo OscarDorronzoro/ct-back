@@ -8,6 +8,7 @@ import errorHandler from './middleware/errorHandler';
 
 import startProcessPendingMessagesJob from './jobs/startProcessPendingMessagesJob';
 import startImageCleanupJob from './jobs/startImageCleanupJob';
+import startSessionCleanupJob from './jobs/startSessionCleanupJob';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -48,5 +49,7 @@ httpServer.listen(portHttp, API_HOST, () => {
 startProcessPendingMessagesJob();
 
 startImageCleanupJob();
+
+startSessionCleanupJob();
 
 export default app;
