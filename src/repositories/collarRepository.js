@@ -88,6 +88,20 @@ const collarRepository = {
     return result ?? null;
   },
 
+  async findByMacs(macs, tx = db) {
+    if (macs.length === 0) {
+      return [];
+    }
+
+    return tx
+      .select()
+      .from(collars)
+      .where(and(
+        inArray(collars.mac, macs),
+        isNull(collars.deletedAt),
+      ));
+  },
+
   // Codes of every collar, deleted included
   async findAllCodes(tx = db) {
     return tx

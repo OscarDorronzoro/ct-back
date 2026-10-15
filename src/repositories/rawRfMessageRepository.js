@@ -1,6 +1,6 @@
 import {
   and, or,
-  eq, inArray, gte, lt, isNull,
+  eq, inArray, gte, lt, lte, isNull, isNotNull,
   asc, desc,
   sql,
 } from 'drizzle-orm';
@@ -17,13 +17,16 @@ const rawRfMessageRepository = {
     const query = tx
       .select({
         ...rawRfMessages,
-        collarIdExists: collars.id,
+        collarId: collars.id,
         cowId: cowCollarAssignments.cowId,
       })
       .from(rawRfMessages)
       .leftJoin(
         collars,
-        eq(rawRfMessages.collarId, collars.id),
+        and(
+          eq(rawRfMessages.collarCode, collars.code),
+          isNull(collars.deletedAt),
+        ),
       )
       .leftJoin(
         cowCollarAssignments,
@@ -67,6 +70,34 @@ const rawRfMessageRepository = {
 
     const rawRfMessageList = await query;
     return rawRfMessageList;
+  },
+
+  async findById(id, tx = db) {
+    const [result] = await tx
+      .select()
+      .from(rawRfMessages)
+      .where(eq(rawRfMessages.id, id));
+
+    return result ?? null;
+  },
+
+  // Last battery reading of a collar up to `before` (messages without voltage are skipped)
+  async findLastVoltage(collarCode, before, tx = db) {
+    const [result] = await tx
+      .select({
+        voltage: rawRfMessages.voltage,
+        recordedAt: rawRfMessages.recordedAt,
+      })
+      .from(rawRfMessages)
+      .where(and(
+        eq(rawRfMessages.collarCode, collarCode),
+        isNotNull(rawRfMessages.voltage),
+        lte(rawRfMessages.recordedAt, before),
+      ))
+      .orderBy(desc(rawRfMessages.recordedAt))
+      .limit(1);
+
+    return result ?? null;
   },
 
   async create(rawRfMessage, tx = db) {
