@@ -1,9 +1,11 @@
 import {
-  eq, and, isNull, desc,
+  eq, ne, and, or, isNull, desc, exists, sql,
 } from 'drizzle-orm';
 
 import db from '../db/drizzle';
 import firmwares from '../schema/firmwares';
+import commands from '../schema/commands';
+import commandTargets from '../schema/commandTargets';
 
 const firmwareRepository = {
 
@@ -67,6 +69,30 @@ const firmwareRepository = {
       .returning();
 
     return created;
+  },
+
+  // Binaries that must be kept: firmwares not deleted, and deleted ones that an unfinished OTA
+  // command still points to (the gateway may be downloading it)
+  async findFilenamesInUse(tx = db) {
+    const openOta = tx
+      .select({ id: commandTargets.id })
+      .from(commandTargets)
+      .innerJoin(commands, eq(commands.id, commandTargets.commandId))
+      .where(and(
+        eq(commands.type, 'ota'),
+        sql`(${commands.payload}->>'firmwareId')::int = ${firmwares.id}`,
+        ne(commandTargets.status, 'done'),
+      ));
+
+    const rows = await tx
+      .select({ filename: firmwares.filename })
+      .from(firmwares)
+      .where(or(
+        isNull(firmwares.deletedAt),
+        exists(openOta),
+      ));
+
+    return new Set(rows.map((row) => row.filename));
   },
 
   async delete(id, tx = db) {

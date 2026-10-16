@@ -9,6 +9,7 @@ import errorHandler from './middleware/errorHandler';
 import startProcessPendingMessagesJob from './jobs/startProcessPendingMessagesJob';
 import startImageCleanupJob from './jobs/startImageCleanupJob';
 import startSessionCleanupJob from './jobs/startSessionCleanupJob';
+import startFirmwareCleanupJob from './jobs/startFirmwareCleanupJob';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -51,5 +52,7 @@ startProcessPendingMessagesJob();
 startImageCleanupJob();
 
 startSessionCleanupJob();
+
+startFirmwareCleanupJob();
 
 export default app;
