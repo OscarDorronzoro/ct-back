@@ -60,6 +60,15 @@ Las reglas que dependen de la base de datos (que exista la entidad, que el polí
 }
 ```
 
+Los errores del pedido que se detectan antes de llegar a la ruta usan el mismo formato:
+
+| Caso | Status | `error` |
+|---|---|---|
+| Body JSON mal formado | 400 | `BAD_REQUEST` |
+| Body de más de 10 MB | 413 | `PAYLOAD_TOO_LARGE` |
+| Archivo más grande que el límite (imagen 5 MB, firmware 4 MB) | 413 | `LIMIT_FILE_SIZE` |
+| Archivo en un campo no esperado | 400 | `LIMIT_UNEXPECTED_FILE` |
+
 ## Autenticación
 
 ### POST /api/auth/login
@@ -1083,8 +1092,9 @@ Sube un firmware. Requiere rol OPERATOR.
 
 ### DELETE /api/firmwares/:id
 
-Elimina un firmware: deja de ofrecerse como el más nuevo. El binario se conserva por si hay
-actualizaciones en curso. Requiere rol OPERATOR.
+Elimina un firmware: deja de ofrecerse como el más nuevo. El binario se conserva mientras algún
+comando OTA sin terminar lo use; después lo borra la limpieza semanal. Su código y su versión no
+pueden volver a usarse. Requiere rol OPERATOR.
 
 #### Status
 
