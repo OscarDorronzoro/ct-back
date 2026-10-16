@@ -6,16 +6,16 @@ dotenv.config({ quiet: true });
 
 const {
   DB_NAME,
-  DB_USERNAME2,
-  DB_PASSWORD2,
+  DB_USERNAME,
+  DB_PASSWORD,
   DB_HOST,
 } = process.env;
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/schema/*",
+  schema: "./src/modules/**/*.schema.js",
   out: "./drizzle",
   dbCredentials: {
-    url: `postgres://${DB_USERNAME2}:${DB_PASSWORD2}@${DB_HOST}:5432/${DB_NAME}`,
+    url: `postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}`,
   },
 });

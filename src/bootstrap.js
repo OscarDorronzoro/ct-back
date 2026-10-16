@@ -1,6 +1,6 @@
 import './config/umask';
 import './config/env';
-import logger from './utils/logger';
+import logger from './shared/utils/logger';
 
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception', {

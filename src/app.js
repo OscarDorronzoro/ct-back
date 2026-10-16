@@ -2,14 +2,14 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import http from 'http';
 
-import logger from './utils/logger';
+import logger from './shared/utils/logger';
 import routes from './routes';
-import errorHandler from './middleware/errorHandler';
+import errorHandler from './shared/middleware/errorHandler.middleware';
 
-import startProcessPendingMessagesJob from './jobs/startProcessPendingMessagesJob';
-import startImageCleanupJob from './jobs/startImageCleanupJob';
-import startSessionCleanupJob from './jobs/startSessionCleanupJob';
-import startFirmwareCleanupJob from './jobs/startFirmwareCleanupJob';
+import startProcessPendingMessagesJob from './modules/telemetry/processPendingMessages.job';
+import startImageCleanupJob from './modules/livestock/imageCleanup.job';
+import startSessionCleanupJob from './modules/identity/sessionCleanup.job';
+import startFirmwareCleanupJob from './modules/devices/firmwareCleanup.job';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
