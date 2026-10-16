@@ -11,6 +11,8 @@ import collarRouter from './collarRouter';
 import breedRouter from './breedRouter';
 import userRouter from './userRouter';
 import searchRouter from './searchRouter';
+import commandRouter from './commandRouter';
+import firmwareRouter from './firmwareRouter';
 import zoneRouter from './zoneRouter';
 
 const router = Router();
@@ -31,6 +33,8 @@ router.use('/collars', collarRouter);
 router.use('/breeds', breedRouter);
 router.use('/users', userRouter);
 router.use('/search', searchRouter);
+router.use('/commands', commandRouter);
+router.use('/firmwares', firmwareRouter);
 router.use('/zones', zoneRouter);
 
 export default router;
