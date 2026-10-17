@@ -21,6 +21,8 @@
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
+    "preversion": "npm run lint && npm run typecheck && npm test",
+    "release": "npm version -m \"chore(release): %s\"",
     "clean": "rm -rf dist",
     "build": "npm run clean && babel src -d dist --extensions .js,.ts --ignore \"src/**/*.test.js\",\"src/**/*.test.ts\",\"src/shared/testing/**\",\"src/**/*.d.ts\"",
     "start_prod": "node dist/bootstrap.js",
