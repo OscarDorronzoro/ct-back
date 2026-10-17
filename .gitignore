@@ -1,6 +1,8 @@
 node_modules/
 package-lock.json
 
+.env
+
 drizzle/
 dist/
 
@@ -14,9 +16,11 @@ tlscert/
 
 log/*
 !log/.gitkeep
+
 images/cows/*
 !images/cows/.gitkeep
 
-.env
 firmwares/*
 !firmwares/.gitkeep
+
+coverage/
