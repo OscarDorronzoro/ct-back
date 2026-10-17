@@ -1,0 +1,23 @@
+{
+  // Type checking only (npm run typecheck): Babel compiles, tsc never emits.
+  // .js files are allowed but not checked, so the code can move to TypeScript file by file.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "isolatedModules": true,
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "vitest.config.mts"]
+}

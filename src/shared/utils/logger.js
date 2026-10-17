@@ -3,7 +3,10 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 
 const LOG_ROOT = process.env.LOG_ROOT || '/var/log/cattle_tracker';
 
-const transports = [
+// Tests (Vitest sets NODE_ENV=test): no log files and nothing printed (some tests log errors)
+const isTest = process.env.NODE_ENV === 'test';
+
+const transports = isTest ? [new winston.transports.Console({ silent: true })] : [
   // Cosole
   new winston.transports.Console(),
 
@@ -43,7 +46,7 @@ const transports = [
   }),
 ];
 
-if (process.env.LOG_LEVEL === 'debug') {
+if (!isTest && process.env.LOG_LEVEL === 'debug') {
   transports.push(
     // File. Debug log and above levels
     new DailyRotateFile({
