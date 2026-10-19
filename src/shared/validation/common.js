@@ -16,6 +16,9 @@ export function optionalField(schema) {
 // ISO date or datetime
 export const date = z.coerce.date({ error: 'must be a valid date' });
 
+// Midnight (server time) of the current day
+export const startOfToday = () => new Date(new Date().setHours(0, 0, 0, 0));
+
 const emptyToUndefined = (value) => (value === '' ? undefined : value);
 
 // ?dateFrom=&dateTo= (ISO). Missing: dateTo is now, dateFrom comes from defaultFrom().

@@ -10,6 +10,7 @@ import startProcessPendingMessagesJob from './modules/telemetry/processPendingMe
 import startImageCleanupJob from './modules/livestock/imageCleanup.job';
 import startSessionCleanupJob from './modules/identity/sessionCleanup.job';
 import startFirmwareCleanupJob from './modules/devices/firmwareCleanup.job';
+import startWeatherSyncJob from './modules/environment/weatherSync.job';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -54,5 +55,7 @@ startImageCleanupJob();
 startSessionCleanupJob();
 
 startFirmwareCleanupJob();
+
+startWeatherSyncJob();
 
 export default app;

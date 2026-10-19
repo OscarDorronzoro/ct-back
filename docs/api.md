@@ -1239,3 +1239,73 @@ Elimina una zona. Requiere rol OPERATOR.
 
 - 403 Forbidden
 - 404 Not Found
+
+## Weather
+
+Clima horario del campo. Lo trae de [Open-Meteo](https://open-meteo.com/) un job que corre cada
+hora (a los 5 minutos). Toma como ubicación el centro de las zonas activas y, si no hay zonas, no
+hace nada. Cada ejecución completa las horas que falten desde la última guardada, como máximo
+los últimos 92 días, y vuelve a pedir el último día para tomar las correcciones del proveedor.
+Solo se guardan las horas ya transcurridas, no el pronóstico.
+
+Campos de cada hora:
+
+| Campo | Unidad | Descripción |
+|---|---|---|
+| `observedAt` | fecha ISO (UTC) | Fin de la hora. |
+| `latitude`, `longitude` | grados | Punto de la grilla que usó el proveedor. |
+| `temperature`, `apparentTemperature` | °C | A 2 m. La aparente combina viento y humedad. |
+| `relativeHumidity` | % | |
+| `precipitation` | mm | Acumulada en la hora. |
+| `weatherCode` | código WMO | 0 despejado, 1–3 nubosidad, 45/48 niebla, 51–67 llovizna y lluvia, 80–82 chaparrones, 95–99 tormenta. |
+| `cloudCover` | % | |
+| `pressure` | hPa | Al nivel del mar. |
+| `windSpeed`, `windGusts` | km/h | A 10 m. |
+| `windDirection` | grados | De dónde viene el viento (0 norte, 90 este). |
+| `source` | | `open-meteo`. |
+| `fetchedAt` | fecha ISO | Cuándo se trajo el dato. |
+
+Cualquier valor puede ser `null` si el proveedor no lo tiene.
+
+### GET /api/weather
+
+Serie horaria en un rango, de la más antigua a la más reciente.
+
+#### Query parameters
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `dateFrom` | fecha ISO | inicio del día | Inclusive. Debe ser anterior a `dateTo`. |
+| `dateTo` | fecha ISO | ahora | Exclusive. |
+
+#### Response
+
+```json
+[
+  {
+    "id": 2216, "observedAt": "2026-10-19T07:00:00.000Z", "latitude": -32.93, "longitude": -61.21,
+    "temperature": 7.3, "apparentTemperature": 4.9, "relativeHumidity": 88, "precipitation": 0,
+    "weatherCode": 3, "cloudCover": 90, "pressure": 1020.7,
+    "windSpeed": 8.5, "windGusts": 13.3, "windDirection": 86,
+    "source": "open-meteo", "fetchedAt": "2026-10-19T07:40:00.065Z"
+  }
+]
+```
+
+#### Status
+
+- 200 OK
+- 400 Bad Request: `VALIDATION_ERROR`.
+
+### GET /api/weather/latest
+
+Última hora guardada (normalmente, la hora que acaba de terminar).
+
+#### Response
+
+Una hora, con los campos de `GET /api/weather`.
+
+#### Status
+
+- 200 OK
+- 404 Not Found: todavía no hay datos.

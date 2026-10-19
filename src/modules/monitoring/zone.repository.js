@@ -50,6 +50,20 @@ const zoneRepository = {
     return result ?? null;
   },
 
+  // Center of the active zones ({ latitude, longitude }), or null if there are none
+  async findCenter(tx = db) {
+    const { rows: [center] } = await tx.execute(sql`
+      SELECT ST_Y(c) AS latitude, ST_X(c) AS longitude
+      FROM (
+        SELECT ST_Centroid(ST_Collect(polygon::geometry)) AS c
+        FROM zones
+        WHERE deleted_at IS NULL
+      ) centroid
+      WHERE c IS NOT NULL`);
+
+    return center ?? null;
+  },
+
   // Self-intersecting polygons are not valid
   async isValidPolygon(points, tx = db) {
     const wkt = zones.points.mapToDriverValue(points);

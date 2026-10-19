@@ -14,6 +14,7 @@ import searchRouter from './modules/monitoring/search.routes';
 import commandRouter from './modules/devices/command.routes';
 import firmwareRouter from './modules/devices/firmware.routes';
 import zoneRouter from './modules/monitoring/zone.routes';
+import weatherRouter from './modules/environment/weather.routes';
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use('/search', searchRouter);
 router.use('/commands', commandRouter);
 router.use('/firmwares', firmwareRouter);
 router.use('/zones', zoneRouter);
+router.use('/weather', weatherRouter);
 
 export default router;
