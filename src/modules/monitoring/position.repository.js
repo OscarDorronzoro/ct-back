@@ -45,6 +45,33 @@ const positionRepository = {
     return rows.map((row) => row.latest);
   },
 
+  // Distance traveled per collar in [dateFrom, dateTo): sum of the distances between
+  // consecutive positions inside the range. The first position of each collar in the range is
+  // left out, since its distance comes from a position before the range.
+  async distanceByCollar({ dateFrom, dateTo, collarId }, tx = db) {
+    const collarFilter = collarId ? sql`AND collar_id = ${collarId}` : sql``;
+
+    const { rows } = await tx.execute(sql`
+      SELECT collar_id,
+        count(*)::int AS positions,
+        coalesce(sum(CASE WHEN previous_id IS NULL THEN 0 ELSE distance_to_previous END), 0)
+          AS meters
+      FROM (
+        SELECT collar_id, distance_to_previous,
+          lag(id) OVER (PARTITION BY collar_id ORDER BY recorded_at) AS previous_id
+        FROM positions
+        WHERE recorded_at >= ${dateFrom} AND recorded_at < ${dateTo} ${collarFilter}
+      ) ranged
+      GROUP BY collar_id
+      ORDER BY collar_id`);
+
+    return rows.map((row) => ({
+      collarId: row.collar_id,
+      positions: row.positions,
+      meters: Math.round(Number(row.meters)),
+    }));
+  },
+
   async findById(id, tx = db) {
     const [result] = await tx
       .select()

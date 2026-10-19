@@ -376,7 +376,16 @@ Obtiene las posiciones registradas en un rango de fechas.
 
 #### Response
 
-Devuelve una lista de posiciones.
+Devuelve una lista de posiciones. Campos calculados por el backend respecto de la posición
+anterior del mismo collar:
+
+| Campo | Descripción |
+|---|---|
+| `distanceToPrevious` | Metros desde la posición anterior. |
+| `speed` | km/h, velocidad media desde la posición anterior. `0` si se movió menos de 10 m (el resto es ruido del GPS). `null` si pasaron menos de 30 s (por ejemplo, el mensaje `sleep` que llega justo después de una posición). |
+| `heading` | Dirección del desplazamiento, en grados desde el norte (0 a 360). `null` si se movió menos de 10 m o pasaron menos de 30 s. |
+
+La primera posición de cada collar no tiene estos valores.
 
 #### Status
 
@@ -385,6 +394,38 @@ Devuelve una lista de posiciones.
 #### Errores
 
 - 500 Internal Server Error: error al obtener las posiciones.
+
+### GET /api/positions/distance
+
+Distancia recorrida por cada collar en un rango: suma de las distancias entre posiciones
+consecutivas dentro del rango. La distancia de la primera posición de cada collar no se cuenta,
+porque viene de una posición anterior al rango.
+
+El valor incluye el ruido del GPS: un collar quieto bajo árboles puede sumar alrededor de 1 km
+por día.
+
+#### Query parameters
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `dateFrom` | fecha ISO | inicio del día | Inclusive. Debe ser anterior a `dateTo`. |
+| `dateTo` | fecha ISO | ahora | Exclusive. |
+| `collarId` | entero | todos | Solo ese collar. |
+
+#### Response
+
+```json
+[
+  { "collarId": 123, "positions": 172, "meters": 2672 }
+]
+```
+
+Una fila por collar con posiciones en el rango.
+
+#### Status
+
+- 200 OK
+- 400 Bad Request: `VALIDATION_ERROR`.
 
 ### GET /api/positions/latest
 

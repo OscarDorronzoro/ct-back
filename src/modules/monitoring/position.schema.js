@@ -11,7 +11,10 @@ const positions = pgTable('positions', {
   zoneId: integer('zone_id'),
   recordedAt: timestamp('recorded_at', { withTimezone: true, mode: 'date' }).notNull(),
   location: geographyPoint().notNull(),
+  // km/h from the previous position (average). 0 under 10 m; null if less than 30 s apart
   speed: real(),
+  // Degrees clockwise from north, from the previous position. Null if it barely moved (GPS noise)
+  heading: real(),
   accuracy: real(),
   signalStrength: real('signal_strength'),
   distanceToPrevious: real('distance_to_previous'),

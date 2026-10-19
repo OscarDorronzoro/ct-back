@@ -33,6 +33,17 @@ function positionController() {
     }
   }
 
+  // Distance traveled per collar in the range
+  async function getDistance(req, res, next) {
+    try {
+      const distances = await positionRepository.distanceByCollar(req.validated.query);
+
+      return res.json(distances);
+    } catch (err) {
+      return next(err);
+    }
+  }
+
   async function getById(req, res, next) {
     try {
       const { positionId } = req.validated.params;
@@ -50,7 +61,9 @@ function positionController() {
     }
   }
 
-  return { get, getLatest, getById };
+  return {
+    get, getLatest, getDistance, getById,
+  };
 }
 
 export default positionController;

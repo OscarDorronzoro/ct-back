@@ -19,11 +19,12 @@ export const date = z.coerce.date({ error: 'must be a valid date' });
 const emptyToUndefined = (value) => (value === '' ? undefined : value);
 
 // ?dateFrom=&dateTo= (ISO). Missing: dateTo is now, dateFrom comes from defaultFrom().
-// dateFrom must be before dateTo.
-export function dateRangeQuery(defaultFrom) {
+// dateFrom must be before dateTo. fields: other query fields validated along with the dates.
+export function dateRangeQuery(defaultFrom, fields = {}) {
   return z.object({
     dateFrom: z.preprocess(emptyToUndefined, date.default(defaultFrom)),
     dateTo: z.preprocess(emptyToUndefined, date.default(() => new Date())),
+    ...fields,
   }).refine(
     ({ dateFrom, dateTo }) => dateFrom < dateTo,
     { message: 'must be before dateTo', path: ['dateFrom'] },
