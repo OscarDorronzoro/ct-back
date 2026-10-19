@@ -10,7 +10,7 @@ import eventRepository from './event.repository';
 import firmwareRepository from '../devices/firmware.repository';
 
 import logger from '../../shared/utils/logger';
-import haversine from '../../shared/utils/positionHelper';
+import haversine, { bearing } from '../../shared/utils/positionHelper';
 import { FACTORY_PARAMS } from '../devices/collarParams.constants';
 import {
   EVENT_TYPES, INVALID_REASONS, MESSAGE_TYPES, INTEGRITY,
@@ -20,6 +20,12 @@ const KNOWN_TYPES = Object.values(MESSAGE_TYPES).filter((t) => t !== MESSAGE_TYP
 
 // Recovery needs this margin over batteryLow, so readings around the threshold don't flap
 const BATTERY_HYSTERESIS_MV = 100;
+
+// Speed and direction need some movement and some time to mean something: below this distance
+// the animal is still (the rest is GPS noise), and below this interval (e.g. the sleep message
+// right after a position) any noise becomes an absurd speed.
+const MIN_MOVEMENT_M = 10;
+const MIN_MOTION_INTERVAL_MS = 30 * 1000;
 // Voltages outside this range are not battery readings (noise, legacy sleep with the GPS time)
 const MIN_VOLTAGE = 2;
 const MAX_VOLTAGE = 5;
@@ -421,7 +427,6 @@ const rawRfMessageService = {
             }
 
             position.signalStrength = computeSignalStrength(raw.rssi, raw.snr);
-            position.speed = raw.speed;
 
             position.rawRfMessageId = raw.id;
             position.collarId = collar.id;
@@ -436,9 +441,22 @@ const rawRfMessageService = {
               const timediff = new Date(position.recordedAt).getTime()
               - new Date(prevPosition.recordedAt).getTime();
 
-              // logger.debug(`Distance: ${distance}. TimeDiff: ${timediff}`);
+              // Average speed (km/h) and direction since the previous position
+              if (timediff >= MIN_MOTION_INTERVAL_MS) {
+                if (distance < MIN_MOVEMENT_M) {
+                  position.speed = 0;
+                } else {
+                  position.speed = (distance / (timediff / 1000)) * 3.6;
+                  position.heading = bearing(prevPosition, position);
+                }
+              }
 
               const { IMPOSSIBLE_MOVEMENT } = INVALID_REASONS;
+
+              // Same fix received twice
+              if (timediff === 0) {
+                invalid = INVALID_REASONS.REPEATED_POSITION;
+              }
 
               if (timediff < 1000 * 60 * 3 && distance > 600) {
                 invalid = IMPOSSIBLE_MOVEMENT + 5;
