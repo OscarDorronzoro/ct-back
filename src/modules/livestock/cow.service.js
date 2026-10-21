@@ -9,6 +9,7 @@ import imageService from './image.service';
 import cowGroupMembershipService from './cowGroupMembership.service';
 import groupRepository from './group.repository';
 import cowGroupMembershipRepository from './cowGroupMembership.repository';
+import categoryRepository from './category.repository';
 
 import logger from '../../shared/utils/logger';
 
@@ -27,6 +28,28 @@ async function validateGroups(groupIds, tx) {
 
   if (groupIds.length !== groups.length) {
     throw new AppError('GROUP_NOT_FOUND', 404);
+  }
+}
+
+// The category must exist and be for the cow's sex. The database enforces it too (composite FK),
+// this gives a clear error instead of a constraint violation.
+async function validateCategory({ categoryId, sex }, tx) {
+  if (categoryId === null || categoryId === undefined) {
+    return;
+  }
+
+  if (!sex) {
+    throw new AppError('SEX_REQUIRED_FOR_CATEGORY', 400);
+  }
+
+  const category = await categoryRepository.findById(categoryId, tx);
+
+  if (!category) {
+    throw new AppError('CATEGORY_NOT_FOUND', 404);
+  }
+
+  if (category.sex !== sex) {
+    throw new AppError('CATEGORY_SEX_MISMATCH', 400);
   }
 }
 
@@ -106,6 +129,8 @@ const cowService = {
 
     try {
       const created = await db.transaction(async (tx) => {
+        await validateCategory(cow, tx);
+
         // Create cow
         const cowCreated = await cowRepository.create(cow, tx);
 
@@ -160,6 +185,20 @@ const cowService = {
 
     try {
       const cow = await db.transaction(async (tx) => {
+        // Category and sex are checked together: the result of the update must agree
+        if (values.categoryId !== undefined || values.sex !== undefined) {
+          const current = await cowRepository.findById(cowId, tx);
+
+          if (!current) {
+            throw new AppError('COW_NOT_FOUND', 404);
+          }
+
+          await validateCategory({
+            categoryId: values.categoryId !== undefined ? values.categoryId : current.categoryId,
+            sex: values.sex ?? current.sex,
+          }, tx);
+        }
+
         // Update cow
         const cowUpdated = await cowRepository.update(cowId, values, tx);
 

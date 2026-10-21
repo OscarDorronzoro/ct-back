@@ -19,6 +19,16 @@ describe('cowBody', () => {
     expect(cowBody.parse({}).currentCollarId).toBeUndefined();
   });
 
+  it.each(['', 'null'])('takes categoryId %j as "no category"', (value) => {
+    expect(cowBody.parse({ categoryId: value }).categoryId).toBeNull();
+  });
+
+  it('accepts only male or female as sex', () => {
+    expect(cowBody.parse({ sex: 'female' }).sex).toBe('female');
+    expect(cowBody.parse({ sex: '' }).sex).toBeUndefined();
+    expect(cowBody.safeParse({ sex: 'hembra' }).success).toBe(false);
+  });
+
   it('rejects an invalid collar id', () => {
     expect(cowBody.safeParse({ currentCollarId: 'abc' }).success).toBe(false);
   });

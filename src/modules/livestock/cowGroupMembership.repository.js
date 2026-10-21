@@ -12,6 +12,7 @@ import cowGroupMemberships from './cowGroupMembership.schema';
 import cows from './cow.schema';
 import groups from './group.schema';
 import breeds from './breed.schema';
+import categories from './category.schema';
 
 const cowGroupMembershipRepository = {
 
@@ -104,6 +105,7 @@ const cowGroupMembershipRepository = {
         cow: {
           ...cows,
           breed: breeds,
+          category: categories,
         },
         group: groups,
       })
@@ -111,6 +113,10 @@ const cowGroupMembershipRepository = {
       .leftJoin(
         breeds,
         eq(cows.breedId, breeds.id),
+      )
+      .leftJoin(
+        categories,
+        eq(cows.categoryId, categories.id),
       )
       .leftJoin(
         cowGroupMemberships,

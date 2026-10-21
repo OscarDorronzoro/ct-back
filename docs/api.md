@@ -190,6 +190,12 @@ Permite enviar una imagen asociada a la vaca.
 
 Recibe los datos de la nueva vaca. Content-Type: multipart/form-data
 
+Sexo y categoría:
+
+- `sex`: `male` o `female`. Una vez cargado no se puede borrar, solo cambiar.
+- `categoryId`: categoría (ver `GET /api/categories`). Vacío o `null` la quita. Requiere el sexo
+  y debe ser una categoría de ese sexo; la base también lo exige.
+
 #### Response
 
 Devuelve la vaca creada.
@@ -201,6 +207,9 @@ Devuelve la vaca creada.
 #### Errores
 
 - 400 Bad Request: datos inválidos o incompletos.
+- 400 Bad Request: `SEX_REQUIRED_FOR_CATEGORY` (categoría sin sexo) o `CATEGORY_SEX_MISMATCH`
+  (la categoría es del otro sexo).
+- 404 Not Found: `CATEGORY_NOT_FOUND`.
 - 500 Internal Server Error: error al crear la vaca.
 
 ### PUT /api/cows/:id
@@ -215,7 +224,9 @@ Permite actualizar la imagen asociada.
 
 #### Request
 
-Recibe los datos a actualizar.
+Recibe los datos a actualizar, con los mismos campos que `POST /api/cows`. Al cambiar el sexo o la
+categoría se valida el resultado: cambiar el sexo de una vaca con categoría requiere enviar también
+una categoría de ese sexo (o quitarla).
 
 #### Response
 
@@ -228,7 +239,8 @@ Devuelve la vaca actualizada.
 #### Errores
 
 - 400 Bad Request: datos inválidos o incompletos.
-- 404 Not Found: la vaca no existe.
+- 400 Bad Request: `SEX_REQUIRED_FOR_CATEGORY` o `CATEGORY_SEX_MISMATCH`.
+- 404 Not Found: la vaca o la categoría no existe.
 - 500 Internal Server Error: error al actualizar la vaca.
 
 ### DELETE /api/cows/:id
@@ -581,6 +593,28 @@ Elimina un grupo.
 
 - 404 Not Found: el grupo no existe.
 - 500 Internal Server Error: error al eliminar el grupo.
+
+## Categories
+
+Categorías de hacienda (ternera, vaquillona, vaca, ternero, novillito, novillo, torito, toro).
+Cada una corresponde a un solo sexo. Es una lista fija, cargada con el schema de la base.
+
+### GET /api/categories
+
+Listado de categorías, en el orden de vida del animal para cada sexo.
+
+#### Response
+
+```json
+[
+  { "id": 1, "name": "Ternera", "sex": "female" },
+  { "id": 4, "name": "Ternero", "sex": "male" }
+]
+```
+
+#### Status
+
+- 200 OK
 
 ## Breeds
 

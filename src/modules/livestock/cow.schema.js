@@ -5,6 +5,9 @@ import {
 const cows = pgTable('cows', {
   id: integer().notNull().primaryKey().generatedAlwaysAsIdentity(),
   breedId: integer('breed_id'),
+  // 'male' | 'female'. Required to set a category, which must be of the same sex
+  sex: varchar(),
+  categoryId: integer('category_id'),
   currentCollarId: integer('current_collar_id'),
   earTag: varchar('ear_tag'),
   alias: varchar(),
