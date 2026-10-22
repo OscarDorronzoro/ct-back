@@ -8,8 +8,19 @@ import AppError from '../../shared/errors/AppError';
 
 const SALT_ROUNDS = 12;
 
+// There must always be an admin: the user can't be the last one. The admin rows stay locked until
+// the transaction ends, so two admins removing each other at once can't both succeed.
+async function assertNotLastAdmin(userId, tx) {
+  const adminIds = await userRepository.lockAdminIds(tx);
+
+  if (adminIds.includes(userId) && adminIds.every((id) => id === userId)) {
+    throw new AppError('LAST_ADMIN', 409);
+  }
+}
+
 // Only users with users:manage (admins) get here: they can manage any user, except leaving
-// themselves without the admin role or deleting themselves, so there is always an admin.
+// themselves without the admin role or deleting themselves (so nobody locks themselves out by
+// mistake), and never leaving the system without an admin.
 const userService = {
 
   async create({ roles, ...values }) {
@@ -41,8 +52,12 @@ const userService = {
       }
 
       if (roles !== undefined) {
-        if (userId === authenticatedUser.sub && !roles.includes(ROLES.ADMIN)) {
-          throw new AppError('CANNOT_REMOVE_OWN_ADMIN_ROLE', 400);
+        if (!roles.includes(ROLES.ADMIN)) {
+          if (userId === authenticatedUser.sub) {
+            throw new AppError('CANNOT_REMOVE_OWN_ADMIN_ROLE', 400);
+          }
+
+          await assertNotLastAdmin(userId, tx);
         }
 
         await userRepository.setRoles(userId, roles, tx);
@@ -72,13 +87,17 @@ const userService = {
       throw new AppError('CANNOT_DELETE_YOURSELF', 400);
     }
 
-    const user = await userRepository.delete(userId);
+    return db.transaction(async (tx) => {
+      await assertNotLastAdmin(userId, tx);
 
-    if (!user) {
-      throw new AppError('USER_NOT_FOUND', 404);
-    }
+      const user = await userRepository.delete(userId, tx);
 
-    return user;
+      if (!user) {
+        throw new AppError('USER_NOT_FOUND', 404);
+      }
+
+      return user;
+    });
   },
 
   async get(userId) {

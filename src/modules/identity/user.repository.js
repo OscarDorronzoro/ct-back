@@ -1,8 +1,11 @@
-import { eq, getTableColumns, sql } from 'drizzle-orm';
+import {
+  eq, getTableColumns, sql,
+} from 'drizzle-orm';
 
 import db from '../../shared/db/drizzle';
 import users from './user.schema';
 import userRoles from './userRole.schema';
+import ROLES from './roles.constants';
 
 const {
   password, createdAt, updatedAt, ...publicColumns
@@ -69,6 +72,18 @@ const userRepository = {
       .returning({ id: users.id });
 
     return user ?? null;
+  },
+
+  // Ids of the admins, locking their rows until the transaction ends: a concurrent transaction
+  // doing the same waits, and then sees this one's changes (READ COMMITTED re-checks locked rows)
+  async lockAdminIds(tx) {
+    const rows = await tx
+      .select({ userId: userRoles.userId })
+      .from(userRoles)
+      .where(eq(userRoles.role, ROLES.ADMIN))
+      .for('update');
+
+    return rows.map((row) => row.userId);
   },
 
   // Replaces the roles of the user

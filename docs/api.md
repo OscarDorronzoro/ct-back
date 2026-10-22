@@ -822,7 +822,7 @@ Requiere `users:manage`.
 
 Actualiza un usuario existente: `password` y/o `roles` (reemplaza la lista completa). Si cambia la contraseña, se revocan todas las sesiones del usuario salvo la de quien hace el cambio.
 
-Un admin no puede quitarse a sí mismo el rol `admin`, para que siempre quede uno.
+Un admin no puede quitarse a sí mismo el rol `admin`, y nunca se le puede quitar al último admin.
 
 #### Parámetros
 - userId: identificador del usuario.
@@ -839,11 +839,16 @@ Requiere `users:manage`.
 - 401 Unauthorized
 - 403 Forbidden
 - 404 Not Found
+- 409 Conflict: `LAST_ADMIN`.
 
 
 ### DELETE /api/users/:userId
 
-Elimina un usuario, con sus roles y sesiones. Un admin no puede eliminarse a sí mismo.
+Elimina un usuario, con sus roles y sesiones. Un admin no puede eliminarse a sí mismo, y el último
+admin no se puede eliminar.
+
+Las dos reglas del último admin bloquean las filas de los admins durante la transacción: si dos
+admins se eliminan entre sí al mismo tiempo, el segundo pedido espera al primero y es rechazado.
 
 #### Parámetros
 - userId: identificador del usuario.
@@ -860,6 +865,7 @@ Requiere `users:manage`.
 - 401 Unauthorized
 - 403 Forbidden
 - 404 Not Found
+- 409 Conflict: `LAST_ADMIN`.
 
 ### GET /api/users/:userId/sessions
 
