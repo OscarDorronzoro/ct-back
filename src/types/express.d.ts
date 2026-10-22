@@ -11,7 +11,8 @@ declare global {
         body?: Record<string, unknown>;
       };
       // authenticateUser: access token payload (sid: session id)
-      user?: { sub: number; role: number; sid?: string };
+      // plus the permissions of its roles
+      user?: { sub: number; roles: string[]; sid?: string; permissions: string[] };
       // gatewayAuth: the gateway that sent the request
       gateway?: { id: number };
     }

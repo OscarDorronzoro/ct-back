@@ -9,6 +9,7 @@ import db from '../../shared/db/drizzle';
 import logger from '../../shared/utils/logger';
 
 import AppError from '../../shared/errors/AppError';
+import { permissionsOf } from './permission.util';
 
 const ACCESS_TOKEN_EXPIRES_IN = '15m';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
@@ -28,6 +29,8 @@ function hashRefreshToken(token) {
 }
 
 // sid: session of the token. A revoked session ends at the next refresh; this one just expires.
+// The permissions come from the roles on each request, so a change in the matrix applies at once;
+// a change in the roles of the user applies with the next token (15 min at most).
 function generateAccessToken(user, sessionId) {
   const { JWT_SECRET } = process.env;
 
@@ -38,7 +41,7 @@ function generateAccessToken(user, sessionId) {
   return jwt.sign(
     {
       sub: user.id,
-      role: user.role,
+      roles: user.roles,
       sid: sessionId,
     },
     JWT_SECRET,
@@ -201,7 +204,7 @@ const authService = {
       throw new AppError('USER_NOT_FOUND', 404);
     }
 
-    return user;
+    return { ...user, permissions: permissionsOf(user.roles) };
   },
 
 };

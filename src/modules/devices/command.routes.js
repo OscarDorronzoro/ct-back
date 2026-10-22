@@ -2,8 +2,7 @@ import { Router } from 'express';
 
 import commandController from './command.controller';
 
-import authorizeRoles from '../identity/authorizeRoles.middleware';
-import ROLES from '../identity/roles.constants';
+import authorize from '../identity/authorize.middleware';
 import validate from '../../shared/middleware/validate.middleware';
 import {
   commandParams, commandListQuery, createCommandBody,
@@ -12,13 +11,17 @@ import {
 const commandRouter = Router();
 const controller = commandController();
 
+// Every route reads; writes need their own permission too
+commandRouter.use(authorize('collars:read'));
+
 commandRouter
   .get('/', validate({ query: commandListQuery }), controller.getAll)
   .get('/:commandId', validate({ params: commandParams }), controller.get)
-  .post('/', authorizeRoles(ROLES.OPERATOR), validate({ body: createCommandBody }), controller.post)
+  .post('/', authorize('commands:send'), validate({ body: createCommandBody }), controller.post)
+  // Any sender can cancel a pending command (it only stops it)
   .post(
     '/:commandId/cancel',
-    authorizeRoles(ROLES.OPERATOR),
+    authorize('commands:send'),
     validate({ params: commandParams }),
     controller.cancel,
   );

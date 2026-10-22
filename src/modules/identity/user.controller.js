@@ -27,8 +27,8 @@ function userController() {
 
   async function post(req, res, next) {
     try {
-      // { username, password, role } (role defaults to VIEWER)
-      const userCreated = await userService.create(req.validated.body, req.user.role);
+      // { username, password, roles } (roles defaults to viewer)
+      const userCreated = await userService.create(req.validated.body);
 
       return res.status(201)
         .json({ user: userCreated });
@@ -38,17 +38,11 @@ function userController() {
   }
 
   async function put(req, res, next) {
-    const authenticatedUser = req.user;
     const { userId } = req.validated.params;
 
     try {
-      // { password?, role? }
-      const userUpdated = await userService.update(
-        userId,
-        req.validated.body,
-        authenticatedUser.role,
-        authenticatedUser.sid,
-      );
+      // { password?, roles? }
+      const userUpdated = await userService.update(userId, req.validated.body, req.user);
 
       return res.status(200)
         .json({ user: userUpdated });
@@ -58,11 +52,10 @@ function userController() {
   }
 
   async function del(req, res, next) {
-    const authenticatedUser = req.user;
     const { userId } = req.validated.params;
 
     try {
-      await userService.delete(userId, authenticatedUser.role);
+      await userService.delete(userId, req.user);
 
       return res.status(204).send();
     } catch (err) {
@@ -86,7 +79,7 @@ function userController() {
     try {
       const { userId, sessionId } = req.validated.params;
 
-      await sessionService.revoke(userId, sessionId, req.user);
+      await sessionService.revoke(userId, sessionId);
 
       return res.status(204).send();
     } catch (err) {

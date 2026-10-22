@@ -1,4 +1,6 @@
 import cowService from './cow.service';
+import missingCowPermission from './cowPermission.util';
+import AppError from '../../shared/errors/AppError';
 
 // Validated form -> cow columns, and what cowService handles apart (image, groups)
 function splitCowForm(form, file) {
@@ -17,6 +19,18 @@ function splitCowForm(form, file) {
   }
 
   return { cow, cowData };
+}
+
+// Each field needs its permission (see cowPermission.util)
+function checkCowFields(cow, cowData, user) {
+  const fields = [...Object.keys(cow), ...Object.keys(cowData)]
+    .filter((field) => cow[field] !== undefined || cowData[field] !== undefined);
+
+  const missing = missingCowPermission(fields, user.permissions);
+
+  if (missing) {
+    throw new AppError('FORBIDDEN', 403, `Missing permission: ${missing}`);
+  }
 }
 
 function cowController() {
@@ -58,6 +72,8 @@ function cowController() {
         delete cow.currentCollarId;
       }
 
+      checkCowFields(cow, cowData, req.user);
+
       const cowCreated = await cowService.create(cow, cowData);
 
       return res.status(201)
@@ -73,6 +89,8 @@ function cowController() {
     try {
       // currentCollarId null: unassign the current collar
       const { cow, cowData } = splitCowForm(req.validated.body, req.file);
+
+      checkCowFields(cow, cowData, req.user);
 
       cow.updatedAt = new Date();
 

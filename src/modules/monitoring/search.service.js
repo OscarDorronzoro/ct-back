@@ -2,10 +2,11 @@ import cowRepository from '../livestock/cow.repository';
 import collarRepository from '../devices/collar.repository';
 
 const searchService = {
-  async search(query) {
+  // Each kind of result only for who can read it
+  async search(query, permissions) {
     const [cows, collars] = await Promise.all([
-      cowRepository.search(query),
-      collarRepository.search(query),
+      permissions.includes('cows:read') ? cowRepository.search(query) : [],
+      permissions.includes('collars:read') ? collarRepository.search(query) : [],
     ]);
 
     return [

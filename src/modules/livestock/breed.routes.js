@@ -2,24 +2,26 @@ import { Router } from 'express';
 
 import breedController from './breed.controller';
 
-import authorizeRoles from '../identity/authorizeRoles.middleware';
-import ROLES from '../identity/roles.constants';
+import authorize from '../identity/authorize.middleware';
 import validate from '../../shared/middleware/validate.middleware';
 import { breedParams, breedBody } from './breed.validator';
 
 const breedRouter = Router();
 const controller = breedController();
 
+// Every route reads; writes need their own permission too
+breedRouter.use(authorize('cows:read'));
+
 breedRouter
   .get('/', controller.getAll)
   .get('/:breedId', validate({ params: breedParams }), controller.get)
-  .post('/', authorizeRoles(ROLES.OPERATOR), validate({ body: breedBody }), controller.post)
+  .post('/', authorize('cows:write'), validate({ body: breedBody }), controller.post)
   .put(
     '/:breedId',
-    authorizeRoles(ROLES.OPERATOR),
+    authorize('cows:write'),
     validate({ params: breedParams, body: breedBody }),
     controller.put,
   )
-  .delete('/:breedId', authorizeRoles(ROLES.OPERATOR), validate({ params: breedParams }), controller.del);
+  .delete('/:breedId', authorize('cows:write'), validate({ params: breedParams }), controller.del);
 
 export default breedRouter;

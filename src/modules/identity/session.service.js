@@ -2,16 +2,11 @@ import userRepository from './user.repository';
 import userSessionRepository from './session.repository';
 import AppError from '../../shared/errors/AppError';
 
-// Same rule as editing a user: only over users of the same or a lower role
-async function checkTargetUser(userId, authenticatedUserRole) {
+async function checkTargetUser(userId) {
   const user = await userRepository.findById(userId);
 
   if (!user) {
     throw new AppError('USER_NOT_FOUND', 404);
-  }
-
-  if (user.role < authenticatedUserRole) {
-    throw new AppError('INSUFFICIENT_PERMISSIONS', 403);
   }
 }
 
@@ -30,15 +25,15 @@ function toResponse(session, currentSessionId) {
 // Admin: a user's active sessions (devices) and revoking them
 const sessionService = {
   async getActive(userId, authenticatedUser) {
-    await checkTargetUser(userId, authenticatedUser.role);
+    await checkTargetUser(userId);
 
     const sessions = await userSessionRepository.findActiveByUser(userId);
 
     return sessions.map((session) => toResponse(session, authenticatedUser.sid));
   },
 
-  async revoke(userId, sessionId, authenticatedUser) {
-    await checkTargetUser(userId, authenticatedUser.role);
+  async revoke(userId, sessionId) {
+    await checkTargetUser(userId);
 
     const session = await userSessionRepository.findById(sessionId);
 
@@ -51,7 +46,7 @@ const sessionService = {
 
   // All but the caller's own session (an admin closing their other devices stays logged in)
   async revokeAll(userId, authenticatedUser) {
-    await checkTargetUser(userId, authenticatedUser.role);
+    await checkTargetUser(userId);
 
     return userSessionRepository.revokeAllForUser(
       userId,

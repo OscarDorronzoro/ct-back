@@ -20,13 +20,42 @@ El token no se expone mediante JavaScript del lado del cliente.
 
 ### Autorización
 
-La API utiliza roles para controlar el acceso a determinadas operaciones.
+Cada endpoint pide un **permiso**. Los usuarios tienen uno o más **roles**, y cada rol agrupa
+permisos: un usuario tiene la unión de los permisos de sus roles. La matriz está en el código
+(`src/modules/identity/permission.constants.js`).
 
-Los roles disponibles son:
+| Permiso | Admin | Encargado | Veterinario | Técnico | Consulta |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `map:read`: posiciones, clima, zonas | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `cows:read`: vacas, grupos, razas, categorías | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `collars:read`: collares, comandos, firmwares | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `cows:write`: datos de la vaca, grupos, razas | ✓ | ✓ | ✓ | | |
+| `cows:assignCollar` | ✓ | ✓ | | ✓ | |
+| `health:read` | ✓ | ✓ | ✓ | | ✓ |
+| `health:write`: eventos sanitarios | ✓ | | ✓ | | |
+| `zones:write` | ✓ | ✓ | | | |
+| `commands:send` | ✓ | ✓ | | ✓ | |
+| `collars:write`: alta y configuración | ✓ | | | ✓ | |
+| `firmware:manage`: archivos y OTA | ✓ | | | ✓ | |
+| `users:manage`: usuarios, roles y sesiones | ✓ | | | | |
 
-VIEWER: acceso de consulta.
-OPERATOR: acceso a operaciones de gestión.
-ADMIN: administración de usuarios.
+Roles en la API: `admin`, `manager` (encargado), `veterinarian`, `technician`, `viewer` (consulta).
+
+Algunas operaciones piden más de un permiso:
+
+- **Comandos:** `commands:send` y además, según el tipo, `collars:write` (`params`, `resetParams`,
+  `diag`, `reboot`) o `firmware:manage` (`ota`, `otaCancel`). Los comandos de zona no piden más.
+- **Edición de una vaca:** cambiar el collar (`currentCollarId`) pide `cows:assignCollar`; el resto
+  de los campos, `cows:write`.
+
+Sin el permiso, la respuesta es `403`:
+
+```json
+{ "error": "FORBIDDEN", "message": "Missing permission: zones:write" }
+```
+
+Los permisos se calculan en cada pedido a partir de los roles del token, así que un cambio de roles
+de un usuario aplica con su próximo token (15 minutos como máximo).
 
 ### Formato de respuesta
 
@@ -100,11 +129,25 @@ Autentica un usuario y devuelve un token JWT.
 
 ### GET /api/auth/me
 
-Obtiene información del usuario actualmente autenticado.
+Obtiene información del usuario actualmente autenticado, con sus roles y permisos. El frontend usa
+`permissions` para mostrar solo lo que el usuario puede hacer.
 
 #### Autenticación
 
 Requerida.
+
+#### Response
+
+```json
+{
+  "user": {
+    "id": 3,
+    "username": "ana",
+    "roles": ["veterinarian"],
+    "permissions": ["map:read", "cows:read", "cows:write", "health:read", "health:write", "collars:read"]
+  }
+}
+```
 
 #### Status
 - 200 OK
@@ -687,7 +730,8 @@ Elimina una raza.
 
 ### GET /api/search
 
-Realiza una búsqueda global sobre los recursos disponibles.
+Realiza una búsqueda global sobre vacas y collares. Requiere `cows:read` o `collars:read`, y solo
+incluye los tipos de resultado que el usuario puede leer.
 
 #### Query parameters
 
@@ -715,7 +759,7 @@ Obtiene el listado de usuarios.
 
 #### Autorización
 
-Requiere rol ADMIN.
+Requiere `users:manage`.
 
 #### Status
 - 200 OK
@@ -734,7 +778,7 @@ Obtiene un usuario mediante su identificador.
 
 #### Autorización
 
-Requiere rol ADMIN.
+Requiere `users:manage`.
 
 #### Status
 - 200 OK
@@ -749,9 +793,21 @@ Requiere rol ADMIN.
 
 Crea un nuevo usuario.
 
+#### Request
+
+```json
+{ "username": "ana", "password": "...", "roles": ["manager", "veterinarian"] }
+```
+
+`roles`: al menos uno, sin repetir. Default: `["viewer"]`.
+
+#### Response
+
+El usuario creado (`{ user: { id, username, roles } }`).
+
 #### Autorización
 
-Requiere rol ADMIN.
+Requiere `users:manage`.
 
 #### Status
 - 201 Created
@@ -764,20 +820,22 @@ Requiere rol ADMIN.
 
 ### PUT /api/users/:userId
 
-Actualiza un usuario existente. Si cambia la contraseña, se revocan todas las sesiones del usuario salvo la de quien hace el cambio.
+Actualiza un usuario existente: `password` y/o `roles` (reemplaza la lista completa). Si cambia la contraseña, se revocan todas las sesiones del usuario salvo la de quien hace el cambio.
+
+Un admin no puede quitarse a sí mismo el rol `admin`, para que siempre quede uno.
 
 #### Parámetros
 - userId: identificador del usuario.
 
 #### Autorización
 
-Requiere rol ADMIN.
+Requiere `users:manage`.
 
 #### Status
 - 200 OK
 
 #### Errores
-- 400 Bad Request
+- 400 Bad Request: datos inválidos, o `CANNOT_REMOVE_OWN_ADMIN_ROLE`.
 - 401 Unauthorized
 - 403 Forbidden
 - 404 Not Found
@@ -785,19 +843,20 @@ Requiere rol ADMIN.
 
 ### DELETE /api/users/:userId
 
-Elimina un usuario.
+Elimina un usuario, con sus roles y sesiones. Un admin no puede eliminarse a sí mismo.
 
 #### Parámetros
 - userId: identificador del usuario.
 
 #### Autorización
 
-Requiere rol ADMIN.
+Requiere `users:manage`.
 
 #### Status
 - 204 No Content
 
 #### Errores
+- 400 Bad Request: `CANNOT_DELETE_YOURSELF`.
 - 401 Unauthorized
 - 403 Forbidden
 - 404 Not Found
@@ -808,7 +867,7 @@ Sesiones activas del usuario (no revocadas y con un token vigente), la más usad
 
 #### Autorización
 
-Requiere rol ADMIN, sobre usuarios de su mismo rol o inferior.
+Requiere `users:manage`.
 
 #### Response
 ```json
@@ -1036,7 +1095,7 @@ Obtiene un comando con el detalle de sus entregas por collar.
 
 ### POST /api/commands
 
-Crea un comando. Requiere rol OPERATOR.
+Crea un comando. Requiere `commands:send` y, según el tipo, `collars:write` o `firmware:manage` (ver Autorización).
 
 #### Request
 
@@ -1144,7 +1203,7 @@ Obtiene un firmware.
 
 ### POST /api/firmwares
 
-Sube un firmware. Requiere rol OPERATOR.
+Sube un firmware. Requiere `firmware:manage`.
 
 #### Request
 
@@ -1169,7 +1228,7 @@ Sube un firmware. Requiere rol OPERATOR.
 
 Elimina un firmware: deja de ofrecerse como el más nuevo. El binario se conserva mientras algún
 comando OTA sin terminar lo use; después lo borra la limpieza semanal. Su código y su versión no
-pueden volver a usarse. Requiere rol OPERATOR.
+pueden volver a usarse. Requiere `firmware:manage`.
 
 #### Status
 
@@ -1221,7 +1280,7 @@ Obtiene una zona.
 
 ### POST /api/zones
 
-Crea una zona. Requiere rol OPERATOR.
+Crea una zona. Requiere `zones:write`.
 
 #### Request
 
@@ -1247,7 +1306,7 @@ Entre 3 y 500 vértices, sin bordes que se crucen.
 
 ### PUT /api/zones/:id
 
-Actualiza una zona (los campos enviados). Requiere rol OPERATOR.
+Actualiza una zona (los campos enviados). Requiere `zones:write`.
 
 Los collares que ya tienen la zona cargada no se actualizan: hay que volver a enviarla con un comando.
 
@@ -1263,7 +1322,7 @@ Los collares que ya tienen la zona cargada no se actualizan: hay que volver a en
 
 ### DELETE /api/zones/:id
 
-Elimina una zona. Requiere rol OPERATOR.
+Elimina una zona. Requiere `zones:write`.
 
 #### Status
 

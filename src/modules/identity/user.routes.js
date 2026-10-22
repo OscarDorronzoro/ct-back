@@ -2,8 +2,7 @@ import { Router } from 'express';
 
 import userController from './user.controller';
 
-import authorizeRoles from './authorizeRoles.middleware';
-import ROLES from './roles.constants';
+import authorize from './authorize.middleware';
 import validate from '../../shared/middleware/validate.middleware';
 import {
   userParams, userSessionParams, createUserBody, updateUserBody,
@@ -12,7 +11,7 @@ import {
 const userRouter = Router();
 const controller = userController();
 
-userRouter.use(authorizeRoles(ROLES.ADMIN));
+userRouter.use(authorize('users:manage'));
 
 userRouter
   .get('/', controller.getAll)

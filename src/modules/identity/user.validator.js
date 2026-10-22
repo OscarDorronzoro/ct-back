@@ -3,8 +3,10 @@ import { z } from 'zod';
 import ROLES from './roles.constants';
 import { idParams, nonEmptyString } from '../../shared/validation/common';
 
-const role = z.coerce.number().int()
-  .refine((value) => Object.values(ROLES).includes(value), 'invalid role');
+// At least one role, duplicates removed
+const roles = z.array(z.enum(Object.values(ROLES)))
+  .min(1, 'at least one role is required')
+  .transform((list) => [...new Set(list)]);
 
 export const userParams = idParams('userId');
 
@@ -15,11 +17,11 @@ export const userSessionParams = userParams.extend({
 export const createUserBody = z.object({
   username: nonEmptyString,
   password: nonEmptyString,
-  role: role.default(ROLES.VIEWER),
+  roles: roles.default([ROLES.VIEWER]),
 });
 
-// Only the password and the role can change
+// Only the password and the roles can change
 export const updateUserBody = z.object({
   password: nonEmptyString.optional(),
-  role: role.optional(),
+  roles: roles.optional(),
 });

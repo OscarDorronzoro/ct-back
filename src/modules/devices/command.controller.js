@@ -1,4 +1,6 @@
 import commandService from './command.service';
+import AppError from '../../shared/errors/AppError';
+import { missingCommandPermission } from '../identity/permission.util';
 
 function commandController() {
   async function getAll(req, res, next) {
@@ -34,6 +36,12 @@ function commandController() {
   // { type, target: 'all' | { collarIds: [...] }, ...fields of the type }
   async function post(req, res, next) {
     try {
+      const missing = missingCommandPermission(req.validated.body.type, req.user.permissions);
+
+      if (missing) {
+        throw new AppError('FORBIDDEN', 403, `Missing permission: ${missing}`);
+      }
+
       const command = await commandService.create(req.validated.body, req.user.sub);
 
       return res.status(202)
