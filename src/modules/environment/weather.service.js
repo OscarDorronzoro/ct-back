@@ -1,7 +1,7 @@
 import weatherRepository from './weather.repository';
 import openMeteoClient from './openMeteo.client';
 import zoneRepository from '../monitoring/zone.repository';
-import { pastDaysToFetch, completedHours } from './weather.util';
+import { fetchRange, storableHours } from './weather.util';
 
 const SOURCE = 'open-meteo';
 
@@ -16,15 +16,15 @@ const weatherService = {
       return { skipped: 'no zones to locate the farm' };
     }
 
-    const pastDays = pastDaysToFetch(await weatherRepository.findLastObservedAt(), now);
-    const hourly = await openMeteoClient.fetchHourly({ ...center, pastDays });
+    const range = fetchRange(await weatherRepository.findLastObservedAt(), now);
+    const hourly = await openMeteoClient.fetchHourly({ ...center, ...range });
 
-    const rows = completedHours(hourly, now)
+    const rows = storableHours(hourly, now)
       .map((row) => ({ ...row, source: SOURCE, fetchedAt: now }));
 
     const stored = await weatherRepository.upsertMany(rows);
 
-    return { pastDays, stored };
+    return { ...range, stored };
   },
 };
 

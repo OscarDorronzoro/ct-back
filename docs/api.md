@@ -1468,11 +1468,11 @@ Elimina una zona. Requiere `zones:write`.
 
 ## Weather
 
-Clima horario del campo. Lo trae de [Open-Meteo](https://open-meteo.com/) un job que corre cada
-hora (a los 5 minutos). Toma como ubicación el centro de las zonas activas y, si no hay zonas, no
-hace nada. Cada ejecución completa las horas que falten desde la última guardada, como máximo
-los últimos 92 días, y vuelve a pedir el último día para tomar las correcciones del proveedor.
-Solo se guardan las horas ya transcurridas, no el pronóstico.
+Clima horario del campo. Lo trae de [Open-Meteo](https://open-meteo.com/) (API de historial de
+pronósticos) un job que corre cada hora, a los 5 minutos. Toma como ubicación el centro de las zonas
+activas y, si no hay zonas, no hace nada. Cada ejecución pide desde el día anterior a la última hora
+guardada, así completa cualquier hueco y toma las correcciones del proveedor; la primera vez trae los
+últimos 92 días. Solo se guardan las horas ya transcurridas y con datos, no el pronóstico.
 
 Campos de cada hora:
 

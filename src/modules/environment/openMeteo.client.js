@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
-const REQUEST_TIMEOUT_MS = 15 * 1000;
-
-// Open-Meteo accepts up to 92 past days on the forecast API
-export const MAX_PAST_DAYS = 92;
+// Historical forecast API: the same model data as the forecast API, archived, for any range of
+// dates up to the latest run. The forecast API (past_days) only has about 2 months of past data
+// here: older hours come back with every value null.
+const HISTORICAL_URL = 'https://historical-forecast-api.open-meteo.com/v1/forecast';
+const REQUEST_TIMEOUT_MS = 30 * 1000;
 
 // Requested hourly variables -> observation field
 const VARIABLES = {
@@ -44,19 +44,21 @@ export function toHourlyRows(data) {
   }));
 }
 
-// Hourly weather from `pastDays` ago until the end of today, as validated rows
-async function fetchHourly({ latitude, longitude, pastDays }) {
+// Hourly weather of the days from startDate to endDate (YYYY-MM-DD, UTC), as validated rows
+async function fetchHourly({
+  latitude, longitude, startDate, endDate,
+}) {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
     hourly: Object.keys(VARIABLES).join(','),
-    past_days: String(pastDays),
-    forecast_days: '1',
+    start_date: startDate,
+    end_date: endDate,
     timezone: 'GMT',
     timeformat: 'unixtime',
   });
 
-  const response = await fetch(`${FORECAST_URL}?${params}`, {
+  const response = await fetch(`${HISTORICAL_URL}?${params}`, {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 

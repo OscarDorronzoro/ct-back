@@ -1,27 +1,19 @@
 import { describe, it, expect } from 'vitest';
 
-import { pastDaysToFetch, completedHours } from './weather.util';
+import { fetchRange, storableHours } from './weather.util';
 import { toHourlyRows } from './openMeteo.client';
 
 const now = new Date('2026-10-19T12:30:00Z');
 const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3600 * 1000);
 
-describe('pastDaysToFetch', () => {
-  it('goes as far back as allowed when nothing is stored', () => {
-    expect(pastDaysToFetch(null, now)).toBe(92);
+describe('fetchRange', () => {
+  it('goes back 92 days when nothing is stored', () => {
+    expect(fetchRange(null, now)).toEqual({ startDate: '2026-07-19', endDate: '2026-10-19' });
   });
 
-  it.each([
-    [1, 2],
-    [24, 2],
-    [25, 3],
-    [24 * 10, 11],
-  ])('last stored %i h ago -> %i days', (hours, days) => {
-    expect(pastDaysToFetch(hoursAgo(hours), now)).toBe(days);
-  });
-
-  it('is capped at 92 days', () => {
-    expect(pastDaysToFetch(hoursAgo(24 * 200), now)).toBe(92);
+  it('starts the day before the last stored hour', () => {
+    expect(fetchRange(hoursAgo(1), now)).toEqual({ startDate: '2026-10-18', endDate: '2026-10-19' });
+    expect(fetchRange(hoursAgo(24 * 10), now)).toEqual({ startDate: '2026-10-08', endDate: '2026-10-19' });
   });
 });
 
@@ -64,10 +56,30 @@ describe('toHourlyRows', () => {
   });
 });
 
-describe('completedHours', () => {
-  it('drops the hours still to come', () => {
-    const rows = [hoursAgo(1), now, hoursAgo(-1)].map((observedAt) => ({ observedAt }));
+describe('storableHours', () => {
+  const hour = (observedAt: Date, temperature: number | null) => ({
+    observedAt,
+    temperature,
+    apparentTemperature: null,
+    relativeHumidity: null,
+    precipitation: null,
+    weatherCode: null,
+    cloudCover: null,
+    pressure: null,
+    windSpeed: null,
+    windGusts: null,
+    windDirection: null,
+  });
 
-    expect(completedHours(rows, now)).toEqual(rows.slice(0, 2));
+  it('drops the hours still to come', () => {
+    const rows = [hour(hoursAgo(1), 10), hour(now, 11), hour(hoursAgo(-1), 12)];
+
+    expect(storableHours(rows, now)).toEqual(rows.slice(0, 2));
+  });
+
+  it('drops hours without any data', () => {
+    const rows = [hour(hoursAgo(2), null), hour(hoursAgo(1), 10)];
+
+    expect(storableHours(rows, now)).toEqual([rows[1]]);
   });
 });
