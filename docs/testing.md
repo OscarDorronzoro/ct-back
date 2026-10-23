@@ -42,6 +42,9 @@ TypeScript, entorno Node. En `src/`:
 | `modules/monitoring/zone.validator` | Polígonos de zonas: vértice de cierre, mínimo de vértices, coordenadas fuera de rango. |
 | `modules/health/health.util` | Fin del retiro de una aplicación (también en tratamientos de varios días) y resumen de la historia: retiro vigente, último peso, refuerzos pendientes y vencidos, sin contar los anulados. |
 | `modules/health/health.validator` | Eventos sanitarios de cada tipo: campos vacíos, refuerzo posterior a la vacunación, revisación con algún dato, condición corporal, fechas futuras; productos. |
+| `modules/analytics/track.util` | Limpieza del recorrido para el dw: paradas con ruido del GPS sin distancia, saltos aislados, caminatas, huecos largos, minutos en movimiento y descanso por día, visitas a zonas con el borde ruidoso. |
+| `modules/analytics/explorer` | Explorador: catálogo según permisos, joins solo de las dimensiones usadas, valores como parámetros (no en el SQL), orden y límite; validación de la consulta. |
+| `modules/livestock/categoryRules.util` | Categoría por edad y castración: cortes de 12 y 24 meses, nunca retrocede, vaquillona → vaca manual, cambio de secuencia al castrar o anular. |
 | `modules/environment/weather.util` | Sync del clima: cuántos días pedir, conversión de la respuesta de Open-Meteo, descarte del pronóstico. |
 
 ## Frontend
@@ -71,6 +74,8 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `utils/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
 | `utils/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
 | `utils/health` | Cómo se muestra cada evento (título y datos según el tipo) y la edad de la vaca. |
+| `utils/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
+| `pages/ExplorerPage` | Pantalla del explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
 | `utils/permissions` | Permisos del usuario (`can`) y opciones del menú que ve cada uno. |
 | `utils/labels` | Nombres para mostrar de collares y vacas. |
 | `utils/userAgent` | Descripción del dispositivo de cada sesión. |

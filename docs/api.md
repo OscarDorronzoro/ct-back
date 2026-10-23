@@ -768,6 +768,82 @@ Actualiza `name`, `meatWithdrawalDays`, `milkWithdrawalDays` y/o `active`. El ti
 los eventos registrados dependen de él. Los productos no se eliminan: se desactivan
 (`active: false`) y dejan de ofrecerse en eventos nuevos.
 
+## Analytics
+
+Explorador de consultas sobre el `dw` (data warehouse liviano que carga un job cada hora). Cada
+consulta combina piezas de un **catálogo** definido en el backend
+(`src/modules/analytics/explorer.catalog.js`):
+
+- **Datasets:** `activity` (actividad diaria), `zoneVisits` (uso de zonas), `stops` (descansos),
+  `weather` (clima), `health` (sanidad, requiere `health:read`) y `battery` (batería de los collares,
+  requiere `collars:read`). El resto requiere `map:read`.
+- **Medidas** de cada dataset (agregaciones con su unidad) y **dimensiones** para agrupar y filtrar
+  (fecha por día, semana o mes; vaca, sexo, raza, categoría, rodeo; zona; lluvia y temperatura del día…).
+
+El SQL se arma solo con piezas del catálogo: los valores elegidos por el usuario van como parámetros.
+Cada consulta corre en una transacción de solo lectura con un límite de 5 segundos.
+
+### GET /api/analytics/catalog
+
+Lo que el usuario puede consultar: los datasets de sus permisos, con sus medidas y dimensiones.
+
+```json
+[
+  {
+    "id": "activity",
+    "label": "Actividad diaria",
+    "description": "Distancia recorrida y tiempo en movimiento o en descanso…",
+    "measures": [{ "id": "distancePerCowKm", "label": "Distancia por vaca y día", "unit": "km" }],
+    "dimensions": [{ "id": "month", "label": "Mes", "kind": "date" }, { "id": "cow", "label": "Vaca", "kind": "category" }]
+  }
+]
+```
+
+### POST /api/analytics/query
+
+```json
+{
+  "dataset": "activity",
+  "measures": ["distancePerCowKm", "restingHours"],
+  "dimensions": ["month", "category"],
+  "filters": [{ "dimension": "group", "values": ["Rodeo 1"] }],
+  "dateFrom": "2026-01-01",
+  "dateTo": "2026-10-22",
+  "sort": { "by": "distancePerCowKm", "direction": "desc" },
+  "limit": 1000
+}
+```
+
+- `measures`: 1 a 4. `dimensions`: 0 a 2. `filters`: hasta 5, por los valores de una dimensión (los de
+  `GET /api/analytics/values`). Rango de fechas obligatorio, de hasta 3 años, inclusivo.
+- Sin `sort`: por fecha si la primera dimensión es una fecha; si no, por la primera medida de mayor a menor.
+
+Response:
+
+```json
+{
+  "columns": [
+    { "id": "month", "label": "Mes", "kind": "dimension" },
+    { "id": "distancePerCowKm", "label": "Distancia por vaca y día", "kind": "measure", "unit": "km" }
+  ],
+  "rows": [[{ "value": "2026-09", "label": "2026-09" }, 2.84]],
+  "truncated": false
+}
+```
+
+Una celda de dimensión es `{ value, label }` (el `value` sirve para filtrar); una de medida, un número
+o `null`. `truncated`: había más filas que `limit`.
+
+#### Errores
+- 400 Bad Request: `VALIDATION_ERROR`, `UNKNOWN_DATASET`, `UNKNOWN_MEASURE`, `UNKNOWN_DIMENSION`,
+  `UNKNOWN_SORT`, `QUERY_TIMEOUT` (tardó más de 5 s: acotar fechas o agrupamientos).
+- 403 Forbidden: el dataset requiere un permiso que el usuario no tiene.
+
+### GET /api/analytics/values
+
+Valores de una dimensión en un rango, para los filtros: `?dataset=activity&dimension=group&dateFrom=…&dateTo=…`.
+Devuelve `[{ "value": "Rodeo 1", "label": "Rodeo 1" }]` (hasta 500, por etiqueta).
+
 ## Categories
 
 Categorías de hacienda (ternera, vaquillona, vaca, ternero, novillito, novillo, torito, toro).
