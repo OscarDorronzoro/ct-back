@@ -5,8 +5,7 @@ node_modules/
 drizzle/
 dist/
 
-db_restore/*
-!db_restore/schema.sql
+db_restore/psql
 
 scripts/*
 !scripts/setup_db.sh
