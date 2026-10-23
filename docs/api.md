@@ -443,6 +443,10 @@ anterior del mismo collar:
 
 La primera posición de cada collar no tiene estos valores.
 
+`zoneId`: zona en la que estaba la vaca, según las zonas activas cuando llegó la posición. Si el
+punto está en varias (un potrero dentro de una zona general), la más chica. `null` fuera de toda
+zona. Editar o borrar una zona no cambia las posiciones ya registradas.
+
 #### Status
 
 - 200 OK

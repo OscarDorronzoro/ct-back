@@ -274,3 +274,21 @@ INSERT INTO products (name, type, meat_withdrawal_days, milk_withdrawal_days) VA
   ('Tilosina 20% (no usar en lactancia)', 'drug', 21, 0),
   ('Oxitocina', 'drug', 0, 0)
 ON CONFLICT (name) DO NOTHING;
+
+
+
+-- Positions: zone of each position ----------------------------------------------------------------------
+-- The processing job now sets positions.zone_id: the smallest active zone that contains the point (the
+-- most specific one: a paddock inside a general zone), or null outside every zone.
+-- Backfill of the existing positions with the current zones. Can be re-run (only fills empty ones).
+
+UPDATE positions p
+SET zone_id = (
+  SELECT z.id
+  FROM zones z
+  WHERE z.deleted_at IS NULL
+    AND ST_Covers(z.polygon, p.location)
+  ORDER BY ST_Area(z.polygon), z.id
+  LIMIT 1
+)
+WHERE p.zone_id IS NULL;

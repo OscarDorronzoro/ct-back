@@ -64,6 +64,20 @@ const zoneRepository = {
     return center ?? null;
   },
 
+  // Zone of a point: the smallest active zone that contains it (the most specific one, e.g. a
+  // paddock inside a general zone), or null if it is outside every zone
+  async findIdContaining({ latitude, longitude }, tx = db) {
+    const { rows: [zone] } = await tx.execute(sql`
+      SELECT id
+      FROM zones
+      WHERE deleted_at IS NULL
+        AND ST_Covers(polygon, ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography)
+      ORDER BY ST_Area(polygon), id
+      LIMIT 1`);
+
+    return zone?.id ?? null;
+  },
+
   // Self-intersecting polygons are not valid
   async isValidPolygon(points, tx = db) {
     const wkt = zones.points.mapToDriverValue(points);

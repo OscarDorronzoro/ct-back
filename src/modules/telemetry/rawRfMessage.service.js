@@ -5,6 +5,7 @@ import positions from '../monitoring/position.schema';
 
 import rawRfMessageRepository from './rawRfMessage.repository';
 import positionRepository from '../monitoring/position.repository';
+import zoneRepository from '../monitoring/zone.repository';
 import collarRepository from '../devices/collar.repository';
 import eventRepository from './event.repository';
 import firmwareRepository from '../devices/firmware.repository';
@@ -480,6 +481,8 @@ const rawRfMessageService = {
 
             if (invalid === INVALID_REASONS.OK) {
               const t1 = Date.now();
+              // Zones as they are when the position arrives: later changes don't rewrite history
+              position.zoneId = await zoneRepository.findIdContaining(position.location, tx);
               await positionRepository.create(position, tx);
               insertTime += Date.now() - t1;
               previousPositions[position.collarId] = position;
