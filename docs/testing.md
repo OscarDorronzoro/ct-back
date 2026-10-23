@@ -40,6 +40,8 @@ TypeScript, entorno Node. En `src/`:
 | `modules/devices/battery.util` | Porcentaje de batería según el voltaje y nivel (ok, bajo, crítico). |
 | `modules/devices/firmwareVersion.util` | Normalización de versiones de firmware a `X.Y.Z`. |
 | `modules/monitoring/zone.validator` | Polígonos de zonas: vértice de cierre, mínimo de vértices, coordenadas fuera de rango. |
+| `modules/health/health.util` | Fin del retiro de una aplicación (también en tratamientos de varios días) y resumen de la historia: retiro vigente, último peso, refuerzos pendientes y vencidos, sin contar los anulados. |
+| `modules/health/health.validator` | Eventos sanitarios de cada tipo: campos vacíos, refuerzo posterior a la vacunación, revisación con algún dato, condición corporal, fechas futuras; productos. |
 | `modules/environment/weather.util` | Sync del clima: cuántos días pedir, conversión de la respuesta de Open-Meteo, descarte del pronóstico. |
 
 ## Frontend
@@ -53,6 +55,8 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `components/auth/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
 | `pages/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
 | `pages/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
+| `pages/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
+| `pages/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
 | `components/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
 | `components/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
 | `components/form/MultiSelectField` | Agregar y quitar selecciones. |
@@ -66,6 +70,7 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `utils/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
 | `utils/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
 | `utils/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
+| `utils/health` | Cómo se muestra cada evento (título y datos según el tipo) y la edad de la vaca. |
 | `utils/permissions` | Permisos del usuario (`can`) y opciones del menú que ve cada uno. |
 | `utils/labels` | Nombres para mostrar de collares y vacas. |
 | `utils/userAgent` | Descripción del dispositivo de cada sesión. |

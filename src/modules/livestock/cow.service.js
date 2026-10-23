@@ -10,6 +10,7 @@ import cowGroupMembershipService from './cowGroupMembership.service';
 import groupRepository from './group.repository';
 import cowGroupMembershipRepository from './cowGroupMembership.repository';
 import categoryRepository from './category.repository';
+import breedRepository from './breed.repository';
 
 import logger from '../../shared/utils/logger';
 
@@ -88,17 +89,21 @@ const cowService = {
 
     const cowMemberships = await cowGroupMembershipRepository.findByCowIdAtDate(cowId, new Date());
     const groupsIds = cowMemberships.map((m) => m.groupId);
-    const groups = await groupRepository.findAll({
-      where: {
-        id: {
-          in: groupsIds,
-        },
-      },
-    });
+
+    // Resolved for the cow card: names, not only ids
+    const [groups, breed, category, collar] = await Promise.all([
+      groupRepository.findAll({ where: { id: { in: groupsIds } } }),
+      cow.breedId ? breedRepository.findById(cow.breedId) : null,
+      cow.categoryId ? categoryRepository.findById(cow.categoryId) : null,
+      cow.currentCollarId ? collarRepository.findById(cow.currentCollarId) : null,
+    ]);
 
     return {
       ...cow,
       groups,
+      breed,
+      category,
+      collar: collar && { id: collar.id, code: collar.code },
     };
   },
 

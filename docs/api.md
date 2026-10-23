@@ -204,7 +204,8 @@ Devuelve una lista de vacas.
 
 ### GET /api/cows/:id
 
-Obtiene una vaca por su identificador.
+Obtiene una vaca por su identificador, con sus datos resueltos para la ficha: `groups` (actuales),
+`breed`, `category` y `collar` (`{ id, code }`), o `null` si no tiene.
 
 #### Path parameters
 
@@ -636,6 +637,132 @@ Elimina un grupo.
 
 - 404 Not Found: el grupo no existe.
 - 500 Internal Server Error: error al eliminar el grupo.
+
+## Health
+
+Historia clínica de las vacas: eventos cargados por una persona (vacunaciones, tratamientos,
+revisaciones y pesajes) y el catálogo de productos. Leer requiere `health:read`; registrar, anular y
+editar productos, `health:write`.
+
+Los eventos **no se editan ni se eliminan**: uno equivocado se anula, con el motivo, y sigue en la
+historia marcado como anulado. Para corregirlo se anula y se registra de nuevo.
+
+**Retiro:** al registrar una vacunación o un tratamiento se calcula hasta cuándo la carne y la leche
+no se pueden vender, con los días de retiro del producto, contados desde el último día de aplicación
+(`durationDays`). Si después cambian los días del producto, los eventos ya registrados no cambian.
+
+### GET /api/health/cows/:cowId
+
+Historia clínica de una vaca, del evento más reciente al más antiguo (incluye los anulados), y un
+resumen de lo que significa hoy, calculado sin los anulados.
+
+```json
+{
+  "summary": {
+    "withdrawal": { "meatUntil": "2026-11-10T12:00:00.000Z", "milkUntil": null },
+    "lastWeight": { "kg": 412, "at": "2026-10-20T12:00:00.000Z" },
+    "nextDoses": [
+      { "product": { "id": 1, "name": "Aftosa", "type": "vaccine" }, "dueOn": "2027-04-20", "overdue": false, "eventId": 12 }
+    ]
+  },
+  "events": [
+    {
+      "id": 12,
+      "cowId": 8,
+      "type": "vaccination",
+      "occurredAt": "2026-10-20T12:00:00.000Z",
+      "notes": null,
+      "recordedBy": { "id": 3, "username": "ana" },
+      "createdAt": "2026-10-20T12:05:00.000Z",
+      "voided": null,
+      "details": {
+        "product": { "id": 1, "name": "Aftosa", "type": "vaccine" },
+        "dose": "2 ml", "batch": "A12", "route": "subcutaneous", "nextDoseOn": "2027-04-20",
+        "meatWithdrawalUntil": null, "milkWithdrawalUntil": null
+      }
+    }
+  ]
+}
+```
+
+- `withdrawal`: fin del retiro vigente más lejano, para carne y para leche (`null`: sin retiro).
+- `nextDoses`: por vacuna, el refuerzo que pide su última vacunación; `overdue` si ya pasó.
+- `voided`: `{ at, by, reason }` si el evento fue anulado.
+- `details` según el tipo:
+
+| Tipo | Campos |
+|---|---|
+| `vaccination` | `product`, `dose`, `batch`, `route`, `nextDoseOn` (fecha), `meatWithdrawalUntil`, `milkWithdrawalUntil` |
+| `treatment` | `product`, `diagnosis`, `dose`, `route`, `durationDays`, `meatWithdrawalUntil`, `milkWithdrawalUntil` |
+| `examination` | `finding`, `temperature` (°C), `bodyCondition` (1 a 5) |
+| `weighing` | `weightKg` |
+
+`route`: `subcutaneous`, `intramuscular`, `intravenous`, `oral`, `topical`, `intramammary`, `intranasal`.
+
+#### Errores
+- 403 Forbidden
+- 404 Not Found: `COW_NOT_FOUND`.
+
+### POST /api/health/cows/:cowId/events
+
+Registra un evento. Body JSON con `type`, `occurredAt` (no puede ser futura), `notes` opcional y los
+campos del tipo (los de `details` de la tabla anterior, con `productId` en lugar de `product`, y sin
+los de retiro, que se calculan):
+
+```json
+{ "type": "treatment", "occurredAt": "2026-10-21T09:30:00Z", "productId": 2,
+  "diagnosis": "Neumonía", "dose": "10 ml", "route": "intramuscular", "durationDays": 3 }
+```
+
+- `vaccination` y `treatment` requieren `productId`: un producto activo y de un tipo acorde (vacuna
+  para vacunación; medicamento o antiparasitario para tratamiento).
+- `nextDoseOn` debe ser posterior a la vacunación. `durationDays`: 1 a 365, default 1.
+- `examination` necesita al menos un hallazgo, una medida o notas. `bodyCondition`: de 1 a 5, en pasos de 0,25 (3; 3,25; 3,5...).
+- `weighing`: `weightKg` mayor a 0.
+
+Devuelve `201` con `{ event }`, como en la historia.
+
+#### Errores
+- 400 Bad Request: `VALIDATION_ERROR`, `PRODUCT_INACTIVE`, `PRODUCT_TYPE_MISMATCH`.
+- 403 Forbidden
+- 404 Not Found: `COW_NOT_FOUND`, `PRODUCT_NOT_FOUND`.
+
+### POST /api/health/events/:eventId/void
+
+Anula un evento. Body: `{ "reason": "Cargado en la vaca equivocada" }`. Devuelve `{ event }`.
+
+#### Errores
+- 400 Bad Request: falta el motivo.
+- 403 Forbidden
+- 404 Not Found: `EVENT_NOT_FOUND`.
+- 409 Conflict: `EVENT_ALREADY_VOIDED`.
+
+### GET /api/health/products
+
+Productos, por nombre. `?active=true`: solo los que se pueden usar en eventos nuevos.
+
+```json
+[
+  { "id": 2, "name": "Ivermectina 1%", "type": "antiparasitic", "meatWithdrawalDays": 35, "milkWithdrawalDays": 0, "active": true }
+]
+```
+
+`type`: `vaccine`, `drug` o `antiparasitic`.
+
+### GET /api/health/products/:productId
+
+Un producto. 404 `PRODUCT_NOT_FOUND` si no existe.
+
+### POST /api/health/products
+
+Crea un producto: `{ name, type, meatWithdrawalDays?, milkWithdrawalDays? }` (días: default 0).
+Devuelve `201` con `{ product }`. 409 `PRODUCT_ALREADY_EXISTS` si el nombre ya existe.
+
+### PUT /api/health/products/:productId
+
+Actualiza `name`, `meatWithdrawalDays`, `milkWithdrawalDays` y/o `active`. El tipo no cambia, porque
+los eventos registrados dependen de él. Los productos no se eliminan: se desactivan
+(`active: false`) y dejan de ofrecerse en eventos nuevos.
 
 ## Categories
 
