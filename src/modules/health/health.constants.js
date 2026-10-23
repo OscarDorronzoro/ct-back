@@ -5,6 +5,8 @@ export const EVENT_TYPES = Object.freeze({
   TREATMENT: 'treatment',
   EXAMINATION: 'examination',
   WEIGHING: 'weighing',
+  // Changes the category of a male (cowCategoryService)
+  CASTRATION: 'castration',
 });
 
 export const PRODUCT_TYPES = Object.freeze({
@@ -18,6 +20,8 @@ export const PRODUCT_TYPES_BY_EVENT = Object.freeze({
   [EVENT_TYPES.VACCINATION]: [PRODUCT_TYPES.VACCINE],
   [EVENT_TYPES.TREATMENT]: [PRODUCT_TYPES.DRUG, PRODUCT_TYPES.ANTIPARASITIC],
 });
+
+export const CASTRATION_METHODS = Object.freeze(['surgical', 'band', 'burdizzo']);
 
 // Route of administration
 export const ROUTES = Object.freeze([

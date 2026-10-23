@@ -1,5 +1,5 @@
 import {
-  eq, desc, sql, getTableColumns,
+  and, eq, desc, isNull, sql, getTableColumns,
 } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
@@ -8,7 +8,7 @@ import animalEvents from './animalEvent.schema';
 import products from './product.schema';
 import users from '../identity/user.schema';
 import {
-  vaccinations, treatments, examinations, weighings,
+  vaccinations, treatments, examinations, weighings, castrations,
 } from './healthDetails.schema';
 import { EVENT_TYPES } from './health.constants';
 
@@ -17,6 +17,7 @@ const DETAIL_TABLES = {
   [EVENT_TYPES.TREATMENT]: treatments,
   [EVENT_TYPES.EXAMINATION]: examinations,
   [EVENT_TYPES.WEIGHING]: weighings,
+  [EVENT_TYPES.CASTRATION]: castrations,
 };
 
 const recorder = alias(users, 'recorder');
@@ -40,6 +41,7 @@ function baseQuery(tx) {
       treatment: withoutEventId(treatments),
       examination: withoutEventId(examinations),
       weighing: withoutEventId(weighings),
+      castration: withoutEventId(castrations),
     })
     .from(animalEvents)
     .leftJoin(recorder, eq(recorder.id, animalEvents.recordedBy))
@@ -48,6 +50,7 @@ function baseQuery(tx) {
     .leftJoin(treatments, eq(treatments.eventId, animalEvents.id))
     .leftJoin(examinations, eq(examinations.eventId, animalEvents.id))
     .leftJoin(weighings, eq(weighings.eventId, animalEvents.id))
+    .leftJoin(castrations, eq(castrations.eventId, animalEvents.id))
     .leftJoin(products, eq(products.id, sql`coalesce(${vaccinations.productId}, ${treatments.productId})`));
 }
 
@@ -94,6 +97,21 @@ const animalEventRepository = {
     const [row] = await baseQuery(tx).where(eq(animalEvents.id, id));
 
     return row ? toEvent(row) : null;
+  },
+
+  // Whether the cow has a castration that wasn't voided
+  async isCastrated(cowId, tx = db) {
+    const [row] = await tx
+      .select({ id: animalEvents.id })
+      .from(animalEvents)
+      .where(and(
+        eq(animalEvents.cowId, cowId),
+        eq(animalEvents.type, EVENT_TYPES.CASTRATION),
+        isNull(animalEvents.voidedAt),
+      ))
+      .limit(1);
+
+    return Boolean(row);
   },
 
   // Base row only, locked: to void it without a concurrent void

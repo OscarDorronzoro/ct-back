@@ -3,7 +3,8 @@ import AppError from '../../shared/errors/AppError';
 import animalEventRepository from './animalEvent.repository';
 import productRepository from './product.repository';
 import cowRepository from '../livestock/cow.repository';
-import { PRODUCT_TYPES_BY_EVENT } from './health.constants';
+import cowCategoryService from '../livestock/cowCategory.service';
+import { EVENT_TYPES, PRODUCT_TYPES_BY_EVENT } from './health.constants';
 import { withdrawalUntil, healthSummary } from './health.util';
 
 // Product of a vaccination or treatment: exists, still in use and of a type for the event
@@ -52,6 +53,16 @@ const healthService = {
         throw new AppError('COW_NOT_FOUND', 404);
       }
 
+      if (type === EVENT_TYPES.CASTRATION) {
+        if (cow.sex !== 'male') {
+          throw new AppError('CASTRATION_REQUIRES_MALE', 400);
+        }
+
+        if (await animalEventRepository.isCastrated(cowId, tx)) {
+          throw new AppError('ALREADY_CASTRATED', 409);
+        }
+      }
+
       if (PRODUCT_TYPES_BY_EVENT[type]) {
         const product = await checkProduct(type, details.productId, tx);
         const days = details.durationDays ?? 1;
@@ -63,6 +74,13 @@ const healthService = {
       const eventId = await animalEventRepository.create({
         cowId, type, occurredAt, notes, recordedBy: userId,
       }, details, tx);
+
+      // A castrated male goes to the steer track (from the day it was castrated)
+      if (type === EVENT_TYPES.CASTRATION) {
+        await cowCategoryService.applyRules(cowId, {
+          at: occurredAt, source: 'event', eventId, userId,
+        }, tx);
+      }
 
       return animalEventRepository.findById(eventId, tx);
     });
@@ -82,6 +100,11 @@ const healthService = {
       }
 
       await animalEventRepository.void(eventId, { voidedBy: userId, reason }, tx);
+
+      // Without the castration the male goes back to the entire track
+      if (event.type === EVENT_TYPES.CASTRATION) {
+        await cowCategoryService.applyRules(event.cowId, { source: 'event', eventId, userId }, tx);
+      }
 
       return animalEventRepository.findById(eventId, tx);
     });

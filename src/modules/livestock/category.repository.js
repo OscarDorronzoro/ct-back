@@ -11,6 +11,15 @@ const categoryRepository = {
       .orderBy(asc(categories.id));
   },
 
+  async findByName(name, tx = db) {
+    const [category] = await tx
+      .select()
+      .from(categories)
+      .where(eq(categories.name, name));
+
+    return category ?? null;
+  },
+
   async findById(id, tx = db) {
     const [category] = await tx
       .select()

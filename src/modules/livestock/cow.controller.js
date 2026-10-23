@@ -74,7 +74,7 @@ function cowController() {
 
       checkCowFields(cow, cowData, req.user);
 
-      const cowCreated = await cowService.create(cow, cowData);
+      const cowCreated = await cowService.create(cow, { ...cowData, userId: req.user.sub });
 
       return res.status(201)
         .json({ cow: cowCreated });
@@ -94,7 +94,7 @@ function cowController() {
 
       cow.updatedAt = new Date();
 
-      const cowReturned = await cowService.update(cowId, cow, cowData);
+      const cowReturned = await cowService.update(cowId, cow, { ...cowData, userId: req.user.sub });
 
       return res.status(200)
         .json({ cow: cowReturned });

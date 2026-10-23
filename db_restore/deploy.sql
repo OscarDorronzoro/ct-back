@@ -292,3 +292,206 @@ SET zone_id = (
   LIMIT 1
 )
 WHERE p.zone_id IS NULL;
+
+
+
+-- Category history of the cows, and castration events ------------------------------------------------
+-- cows.category_id stays as the current category (composite FK with the sex); the history is in
+-- cow_category_assignments. Changes: cow form (manual), age rules (automatic, daily job) or an event
+-- (castration). Castration is a new type of animal event.
+
+CREATE TABLE cow_category_assignments (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  cow_id integer NOT NULL REFERENCES cows (id),
+  category_id integer NOT NULL REFERENCES categories (id),
+  date_from timestamp with time zone NOT NULL,
+  date_to timestamp with time zone,
+  source character varying NOT NULL CHECK (source IN ('manual', 'automatic', 'event')),
+  event_id integer REFERENCES animal_events (id),
+  assigned_by integer REFERENCES users (id) ON DELETE SET NULL,
+  CHECK (date_to IS NULL OR date_to >= date_from)
+);
+
+-- One current category per cow
+CREATE UNIQUE INDEX uq_cow_category_assignments_current ON cow_category_assignments (cow_id) WHERE date_to IS NULL;
+CREATE INDEX idx_cow_category_assignments_cow ON cow_category_assignments (cow_id, date_from);
+
+COMMENT ON TABLE cow_category_assignments IS 'Category history of each cow; the current one is also cows.category_id';
+
+-- The current categories start the history (from the last change of the cow, the best date known)
+INSERT INTO cow_category_assignments (cow_id, category_id, date_from, source)
+SELECT id, category_id, coalesce(updated_at, created_at, now()), 'manual'
+FROM cows
+WHERE category_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM cow_category_assignments a WHERE a.cow_id = cows.id);
+
+ALTER TABLE animal_events DROP CONSTRAINT animal_events_type_check;
+ALTER TABLE animal_events ADD CONSTRAINT animal_events_type_check
+  CHECK (type IN ('vaccination', 'treatment', 'examination', 'weighing', 'castration'));
+
+CREATE TABLE castrations (
+  event_id integer PRIMARY KEY REFERENCES animal_events (id) ON DELETE CASCADE,
+  method character varying CHECK (method IN ('surgical', 'band', 'burdizzo'))
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON cow_category_assignments, castrations TO ctapp;
+
+
+
+-- dw: light data warehouse for the analytics explorer -------------------------------------------------
+-- Facts (fact_*) and dimensions (dim_*) computed from the operational tables by the hourly job
+-- dwRefresh (src/modules/analytics). Only that job writes here; positions stay untouched (the GPS
+-- noise filter results live in the facts). The first run loads the whole history.
+
+CREATE SCHEMA dw;
+
+CREATE TABLE dw.dim_date (
+  date_key date PRIMARY KEY,
+  year integer NOT NULL,
+  quarter integer NOT NULL,
+  month integer NOT NULL,
+  iso_year integer NOT NULL,
+  iso_week integer NOT NULL,
+  day_of_month integer NOT NULL,
+  day_of_week integer NOT NULL
+);
+
+CREATE TABLE dw.dim_cow (
+  cow_id integer PRIMARY KEY,
+  ear_tag character varying,
+  alias character varying,
+  sex character varying,
+  breed_id integer,
+  breed_name character varying,
+  birth_date date,
+  deleted boolean NOT NULL
+);
+
+CREATE TABLE dw.dim_category (
+  category_id integer PRIMARY KEY,
+  name character varying NOT NULL,
+  sex character varying NOT NULL
+);
+
+CREATE TABLE dw.dim_zone (
+  zone_id integer PRIMARY KEY,
+  name character varying,
+  zone_type character varying,
+  area_m2 real,
+  deleted boolean NOT NULL
+);
+
+CREATE TABLE dw.fact_stop (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  cow_id integer NOT NULL,
+  started_at timestamp with time zone NOT NULL,
+  ended_at timestamp with time zone NOT NULL,
+  duration_min real NOT NULL,
+  center geography(Point, 4326) NOT NULL,
+  zone_id integer,
+  positions integer NOT NULL
+);
+CREATE INDEX idx_fact_stop_cow_started_at ON dw.fact_stop (cow_id, started_at);
+
+CREATE TABLE dw.fact_zone_visit (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  cow_id integer NOT NULL,
+  zone_id integer NOT NULL,
+  entered_at timestamp with time zone NOT NULL,
+  left_at timestamp with time zone NOT NULL,
+  duration_min real NOT NULL,
+  positions integer NOT NULL
+);
+CREATE INDEX idx_fact_zone_visit_cow_entered_at ON dw.fact_zone_visit (cow_id, entered_at);
+CREATE INDEX idx_fact_zone_visit_zone_entered_at ON dw.fact_zone_visit (zone_id, entered_at);
+
+CREATE TABLE dw.fact_daily_activity (
+  date_key date NOT NULL,
+  cow_id integer NOT NULL,
+  category_id integer,
+  positions integer NOT NULL,
+  raw_distance_m real NOT NULL,
+  distance_m real NOT NULL,
+  moving_min real NOT NULL,
+  resting_min real NOT NULL,
+  PRIMARY KEY (date_key, cow_id)
+);
+CREATE INDEX idx_fact_daily_activity_cow ON dw.fact_daily_activity (cow_id, date_key);
+
+COMMENT ON COLUMN dw.fact_daily_activity.raw_distance_m IS 'Sum of the distances between positions, GPS noise included';
+COMMENT ON COLUMN dw.fact_daily_activity.distance_m IS 'Without the noise inside stops (stay points, radius 30 m)';
+COMMENT ON COLUMN dw.fact_daily_activity.category_id IS 'Category of the cow at the end of the day';
+
+CREATE TABLE dw.fact_daily_weather (
+  date_key date PRIMARY KEY,
+  temperature_min real,
+  temperature_max real,
+  temperature_avg real,
+  precipitation_mm real,
+  humidity_avg real,
+  wind_max_kmh real,
+  gust_max_kmh real,
+  hours integer NOT NULL
+);
+
+CREATE TABLE dw.fact_health_event (
+  event_id integer PRIMARY KEY,
+  cow_id integer NOT NULL,
+  date_key date NOT NULL,
+  occurred_at timestamp with time zone NOT NULL,
+  type character varying NOT NULL,
+  product_id integer,
+  product_name character varying,
+  product_type character varying,
+  weight_kg real,
+  temperature real,
+  body_condition real
+);
+CREATE INDEX idx_fact_health_event_cow ON dw.fact_health_event (cow_id, date_key);
+
+CREATE TABLE dw.etl_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  started_at timestamp with time zone NOT NULL,
+  finished_at timestamp with time zone,
+  stats jsonb,
+  error character varying
+);
+
+GRANT USAGE ON SCHEMA dw TO ctapp;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA dw TO ctapp;
+-- Tables added to dw later by the same owner get the same grants
+ALTER DEFAULT PRIVILEGES IN SCHEMA dw GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ctapp;
+
+
+
+-- dw: collars and their battery per day ----------------------------------------------------------------
+
+CREATE TABLE dw.dim_collar (
+  collar_id integer PRIMARY KEY,
+  code integer,
+  description character varying,
+  firmware_version character varying,
+  deleted boolean NOT NULL
+);
+
+CREATE TABLE dw.fact_battery_daily (
+  date_key date NOT NULL,
+  collar_id integer NOT NULL,
+  cow_id integer,
+  readings integer NOT NULL,
+  voltage_min real NOT NULL,
+  voltage_median real NOT NULL,
+  voltage_max real NOT NULL,
+  voltage_dawn real,
+  voltage_dawn_change real,
+  percent integer NOT NULL,
+  PRIMARY KEY (date_key, collar_id)
+);
+
+COMMENT ON COLUMN dw.fact_battery_daily.voltage_dawn IS 'Median 3 to 5 am of the farm: battery at rest, without sun';
+COMMENT ON COLUMN dw.fact_battery_daily.voltage_dawn_change IS 'Against the previous dawn: > 0, the solar panel put back more than the collar used';
+COMMENT ON COLUMN dw.fact_battery_daily.percent IS 'Estimate from the dawn voltage (median of the day without it) with the discharge curve of the backend';
+
+-- The default privileges of the dw section already grant them to ctapp; repeated in case these were
+-- created by another role
+GRANT SELECT, INSERT, UPDATE, DELETE ON dw.dim_collar, dw.fact_battery_daily TO ctapp;

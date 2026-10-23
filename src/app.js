@@ -11,6 +11,8 @@ import startImageCleanupJob from './modules/livestock/imageCleanup.job';
 import startSessionCleanupJob from './modules/identity/sessionCleanup.job';
 import startFirmwareCleanupJob from './modules/devices/firmwareCleanup.job';
 import startWeatherSyncJob from './modules/environment/weatherSync.job';
+import startCategoryRulesJob from './modules/livestock/categoryRules.job';
+import startDwRefreshJob from './modules/analytics/dwRefresh.job';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -49,13 +51,11 @@ httpServer.listen(portHttp, API_HOST, () => {
 
 // Jobs
 startProcessPendingMessagesJob();
-
 startImageCleanupJob();
-
 startSessionCleanupJob();
-
 startFirmwareCleanupJob();
-
 startWeatherSyncJob();
+startCategoryRulesJob();
+startDwRefreshJob();
 
 export default app;

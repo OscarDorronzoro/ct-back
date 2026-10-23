@@ -11,6 +11,7 @@ import groupRepository from './group.repository';
 import cowGroupMembershipRepository from './cowGroupMembership.repository';
 import categoryRepository from './category.repository';
 import breedRepository from './breed.repository';
+import cowCategoryService from './cowCategory.service';
 
 import logger from '../../shared/utils/logger';
 
@@ -91,11 +92,12 @@ const cowService = {
     const groupsIds = cowMemberships.map((m) => m.groupId);
 
     // Resolved for the cow card: names, not only ids
-    const [groups, breed, category, collar] = await Promise.all([
+    const [groups, breed, category, collar, categoryHistory] = await Promise.all([
       groupRepository.findAll({ where: { id: { in: groupsIds } } }),
       cow.breedId ? breedRepository.findById(cow.breedId) : null,
       cow.categoryId ? categoryRepository.findById(cow.categoryId) : null,
       cow.currentCollarId ? collarRepository.findById(cow.currentCollarId) : null,
+      cowCategoryService.getHistory(cowId),
     ]);
 
     return {
@@ -103,6 +105,7 @@ const cowService = {
       groups,
       breed,
       category,
+      categoryHistory,
       collar: collar && { id: collar.id, code: collar.code },
     };
   },
@@ -138,6 +141,12 @@ const cowService = {
 
         // Create cow
         const cowCreated = await cowRepository.create(cow, tx);
+
+        if (cow.categoryId) {
+          await cowCategoryService.recordChange(cowCreated.id, cow.categoryId, {
+            source: 'manual', userId: data.userId,
+          }, tx);
+        }
 
         // Manage collar assingment
         if (cow.currentCollarId !== undefined) {
@@ -215,6 +224,12 @@ const cowService = {
         }
 
         oldImageUrl = cowUpdated.imageUrl;
+
+        if (values.categoryId !== undefined) {
+          await cowCategoryService.recordChange(cowId, values.categoryId, {
+            source: 'manual', userId: data.userId,
+          }, tx);
+        }
 
         // Manage collar assignment
         if (values.currentCollarId !== undefined) {

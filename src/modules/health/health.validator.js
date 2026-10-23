@@ -3,7 +3,9 @@ import { z } from 'zod';
 import {
   id, idParams, optionalField, date, nonEmptyString,
 } from '../../shared/validation/common';
-import { EVENT_TYPES, PRODUCT_TYPES, ROUTES } from './health.constants';
+import {
+  EVENT_TYPES, PRODUCT_TYPES, ROUTES, CASTRATION_METHODS,
+} from './health.constants';
 
 // Events are recorded after they happen; a few minutes of clock difference are allowed
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -55,6 +57,9 @@ export const createEventBody = z.discriminatedUnion('type', [
   ),
   event(EVENT_TYPES.WEIGHING, {
     weightKg: z.number().positive().max(2000),
+  }),
+  event(EVENT_TYPES.CASTRATION, {
+    method: optionalField(z.enum(CASTRATION_METHODS)),
   }),
 ]);
 

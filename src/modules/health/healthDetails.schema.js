@@ -38,6 +38,12 @@ export const examinations = pgTable('examinations', {
   bodyCondition: real('body_condition'),
 });
 
+export const castrations = pgTable('castrations', {
+  eventId: integer('event_id').notNull().primaryKey(),
+  // health.constants CASTRATION_METHODS: surgical, band (elastrator), burdizzo
+  method: varchar(),
+});
+
 export const weighings = pgTable('weighings', {
   eventId: integer('event_id').notNull().primaryKey(),
   weightKg: real('weight_kg').notNull(),

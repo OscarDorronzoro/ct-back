@@ -1,6 +1,6 @@
 import {
   eq, and, or,
-  isNull,
+  isNull, isNotNull,
 } from 'drizzle-orm';
 
 import db from '../../shared/db/drizzle';
@@ -71,6 +71,16 @@ const cowRepository = {
       .returning();
 
     return deleted ?? null;
+  },
+
+  // Active cows with a sex: the ones the category rules can apply to
+  async findIdsWithSex(tx = db) {
+    const rows = await tx
+      .select({ id: cows.id })
+      .from(cows)
+      .where(and(isNull(cows.deletedAt), isNotNull(cows.sex)));
+
+    return rows.map((row) => row.id);
   },
 
   async search(query, tx = db) {
