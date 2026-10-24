@@ -116,8 +116,11 @@ const cowService = {
 
     const cowsMap = rows.reduce((map, row) => {
       if (!map.has(row.cow.id)) {
+        // The left joins give { id: null, ... } without breed or category: null, like get()
         map.set(row.cow.id, {
           ...row.cow,
+          breed: row.cow.breed.id === null ? null : row.cow.breed,
+          category: row.cow.category.id === null ? null : row.cow.category,
           groups: [],
         });
       }
