@@ -72,13 +72,13 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `shared/lib/date/dateRange` | Rangos del historial: "Hoy" (mínimo 6 h), rangos móviles y fijos, desplazamiento, textos. |
 | `shared/lib/date/dateHelper` | Tiempo transcurrido ("hace 5 min"). |
 | `shared/lib/geo/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
-| `utils/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
+| `widgets/map/lib/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
 | `entities/zone/model/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
 | `entities/health-event/model/eventDisplay` | Cómo se muestra cada evento (título y datos según el tipo). |
 | `entities/cow/model/cow` | Nombre para mostrar y edad de la vaca. |
-| `utils/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
-| `pages/ExplorerPage` | Pantalla del explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
+| `widgets/explorer/model/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
+| `widgets/explorer/ui/Explorer` | Explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
 | `entities/viewer/model/permissions` | Permisos del usuario (`can`). |
-| `components/nav/navItems` | Opciones del menú que ve cada usuario según sus permisos. |
+| `widgets/navigation/model/navItems` | Opciones del menú que ve cada usuario según sus permisos. |
 | `entities/collar/model/collar` | Nombre para mostrar del collar. |
 | `shared/lib/user-agent/userAgent` | Descripción del dispositivo de cada sesión. |
