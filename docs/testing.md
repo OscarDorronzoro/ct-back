@@ -65,7 +65,7 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
 | `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones. |
 | `shared/ui/form/CheckboxGroupField` | Marcar y desmarcar opciones (los roles de un usuario), en orden, y opciones deshabilitadas. |
-| `components/history/RangePicker` | Selector de rango del historial: presets, rango personalizado, períodos anterior y siguiente. |
+| `features/select-history-range/ui/RangePicker` | Selector de rango del historial: presets, rango personalizado, períodos anterior y siguiente. |
 | `shared/lib/polling/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
 | `shared/lib/list/useEntityList` | Listados: carga, error y borrado con confirmación. |
 | `shared/lib/list/useListSearch` | Búsqueda en listados: sin acentos ni mayúsculas, varios campos, máximo 8 resultados. |
