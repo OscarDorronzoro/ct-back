@@ -73,10 +73,12 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `shared/lib/date/dateHelper` | Tiempo transcurrido ("hace 5 min"). |
 | `shared/lib/geo/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
 | `utils/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
-| `utils/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
-| `utils/health` | Cómo se muestra cada evento (título y datos según el tipo) y la edad de la vaca. |
+| `entities/zone/model/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
+| `entities/health-event/model/eventDisplay` | Cómo se muestra cada evento (título y datos según el tipo). |
+| `entities/cow/model/cow` | Nombre para mostrar y edad de la vaca. |
 | `utils/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
 | `pages/ExplorerPage` | Pantalla del explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
-| `utils/permissions` | Permisos del usuario (`can`) y opciones del menú que ve cada uno. |
-| `utils/labels` | Nombres para mostrar de collares y vacas. |
-| `utils/userAgent` | Descripción del dispositivo de cada sesión. |
+| `entities/viewer/model/permissions` | Permisos del usuario (`can`). |
+| `components/nav/navItems` | Opciones del menú que ve cada usuario según sus permisos. |
+| `entities/collar/model/collar` | Nombre para mostrar del collar. |
+| `shared/lib/user-agent/userAgent` | Descripción del dispositivo de cada sesión. |

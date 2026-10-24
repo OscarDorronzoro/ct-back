@@ -192,7 +192,8 @@ Obtiene el listado de vacas.
 
 #### Response
 
-Devuelve una lista de vacas.
+Devuelve una lista de vacas, cada una con sus `groups` actuales, `breed` (`{ id, name }`) y
+`category` (`{ id, name, sex }`), o `null` si no tiene.
 
 #### Status
 
