@@ -177,6 +177,21 @@ export const DATASETS = {
     dimensions: dateDims,
   },
 
+  pasture: {
+    label: 'Pasturas (NDVI)',
+    description: 'Índice de vegetación (NDVI) de cada potrero según las imágenes satelitales de Sentinel-2, sin nubes. Pastura rala: 0,3 a 0,5; densa: 0,6 o más.',
+    permission: 'map:read',
+    from: sql`dw.fact_zone_ndvi f`,
+    date: sql`f.date_key`,
+    measures: {
+      ndvi: { label: 'NDVI medio', unit: null, expr: sql`avg(f.ndvi_mean)` },
+      ndviMax: { label: 'NDVI medio más alto', unit: null, expr: sql`max(f.ndvi_mean)` },
+      ndviMin: { label: 'NDVI medio más bajo', unit: null, expr: sql`min(f.ndvi_mean)` },
+      images: { label: 'Imágenes útiles', unit: null, expr: sql`count(*)` },
+    },
+    dimensions: [...dateDims, 'zone', 'zoneType'],
+  },
+
   health: {
     label: 'Sanidad',
     description: 'Vacunaciones, tratamientos, revisaciones, pesajes y castraciones (sin los anulados).',

@@ -776,8 +776,14 @@ consulta combina piezas de un **catálogo** definido en el backend
 (`src/modules/analytics/explorer.catalog.js`):
 
 - **Datasets:** `activity` (actividad diaria), `zoneVisits` (uso de zonas), `stops` (descansos),
-  `weather` (clima), `health` (sanidad, requiere `health:read`) y `battery` (batería de los collares,
-  requiere `collars:read`). El resto requiere `map:read`.
+  `weather` (clima), `pasture` (NDVI de los potreros), `health` (sanidad, requiere `health:read`) y
+  `battery` (batería de los collares, requiere `collars:read`). El resto requiere `map:read`.
+
+El NDVI de los potreros y de la zona general lo trae un job diario de la Statistical API de Copernicus
+Data Space (imágenes Sentinel-2): por cada imagen, la media, el mínimo y el máximo del índice en los
+píxeles sin nubes, sombras ni agua; se guardan las imágenes en las que se vio al menos la mitad de la
+zona. Requiere `COPERNICUS_CLIENT_ID` y `COPERNICUS_CLIENT_SECRET` en el `.env`; sin ellos el job no
+hace nada.
 - **Medidas** de cada dataset (agregaciones con su unidad) y **dimensiones** para agrupar y filtrar
   (fecha por día, semana o mes; vaca, sexo, raza, categoría, rodeo; zona; lluvia y temperatura del día…).
 

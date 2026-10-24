@@ -160,6 +160,12 @@ const dwRepository = {
       FROM weather_observations
       GROUP BY 1`);
 
+    await tx.execute(sql`DELETE FROM dw.fact_zone_ndvi`);
+    await tx.execute(sql`
+      INSERT INTO dw.fact_zone_ndvi
+      SELECT acquired_on, zone_id, ndvi_mean, ndvi_min, ndvi_max, valid_fraction
+      FROM zone_ndvi_observations`);
+
     await tx.execute(sql`DELETE FROM dw.fact_health_event`);
     await tx.execute(sql`
       INSERT INTO dw.fact_health_event

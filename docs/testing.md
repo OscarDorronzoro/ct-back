@@ -45,6 +45,7 @@ TypeScript, entorno Node. En `src/`:
 | `modules/analytics/track.util` | Limpieza del recorrido para el dw: paradas con ruido del GPS sin distancia, saltos aislados, caminatas, huecos largos, minutos en movimiento y descanso por día, visitas a zonas con el borde ruidoso. |
 | `modules/analytics/explorer` | Explorador: catálogo según permisos, joins solo de las dimensiones usadas, valores como parámetros (no en el SQL), orden y límite; validación de la consulta. |
 | `modules/livestock/categoryRules.util` | Categoría por edad y castración: cortes de 12 y 24 meses, nunca retrocede, vaquillona → vaca manual, cambio de secuencia al castrar o anular. |
+| `modules/environment/ndvi.util` | NDVI satelital: rangos a pedir (un año la primera vez, en tramos de 90 días; luego 15 días hacia atrás), imágenes con al menos la mitad de la zona despejada, días sin imagen. |
 | `modules/environment/weather.util` | Sync del clima: cuántos días pedir, conversión de la respuesta de Open-Meteo, descarte del pronóstico. |
 
 ## Frontend

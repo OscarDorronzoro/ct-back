@@ -495,3 +495,41 @@ COMMENT ON COLUMN dw.fact_battery_daily.percent IS 'Estimate from the dawn volta
 -- The default privileges of the dw section already grant them to ctapp; repeated in case these were
 -- created by another role
 GRANT SELECT, INSERT, UPDATE, DELETE ON dw.dim_collar, dw.fact_battery_daily TO ctapp;
+
+
+
+-- NDVI of the zones (Sentinel-2, Copernicus Data Space) and its dw table --------------------------------
+-- Daily job ndviSync for the zones of type potrero and general; needs COPERNICUS_CLIENT_ID and
+-- COPERNICUS_CLIENT_SECRET in the .env (without them it is skipped). The first run loads 12 months.
+
+CREATE TABLE zone_ndvi_observations (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  zone_id integer NOT NULL REFERENCES zones (id),
+  acquired_on date NOT NULL,
+  ndvi_mean real NOT NULL,
+  ndvi_min real NOT NULL,
+  ndvi_max real NOT NULL,
+  ndvi_stdev real NOT NULL,
+  valid_fraction real NOT NULL CHECK (valid_fraction BETWEEN 0 AND 1),
+  pixels integer NOT NULL,
+  source character varying NOT NULL,
+  fetched_at timestamp with time zone NOT NULL,
+  UNIQUE (zone_id, acquired_on)
+);
+
+COMMENT ON TABLE zone_ndvi_observations IS 'NDVI of each zone per satellite image, clear pixels only (no clouds, shadows or water)';
+COMMENT ON COLUMN zone_ndvi_observations.valid_fraction IS 'Part of the zone seen clear (0..1); images under 0.5 are not stored';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON zone_ndvi_observations TO ctapp;
+
+CREATE TABLE dw.fact_zone_ndvi (
+  date_key date NOT NULL,
+  zone_id integer NOT NULL,
+  ndvi_mean real NOT NULL,
+  ndvi_min real NOT NULL,
+  ndvi_max real NOT NULL,
+  valid_fraction real NOT NULL,
+  PRIMARY KEY (date_key, zone_id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON dw.fact_zone_ndvi TO ctapp;

@@ -25,7 +25,7 @@ describe('explorer catalog', () => {
   it('shows each user only the datasets of their permissions', () => {
     const ids = (permissions: string[]) => catalogFor(permissions).map((d) => d.id);
 
-    expect(ids(['map:read'])).toEqual(['activity', 'zoneVisits', 'stops', 'weather']);
+    expect(ids(['map:read'])).toEqual(['activity', 'zoneVisits', 'stops', 'weather', 'pasture']);
     expect(ids(['map:read', 'health:read', 'collars:read'])).toContain('health');
     expect(ids(['map:read', 'collars:read'])).toContain('battery');
     expect(ids([])).toEqual([]);

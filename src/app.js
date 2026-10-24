@@ -11,6 +11,7 @@ import startImageCleanupJob from './modules/livestock/imageCleanup.job';
 import startSessionCleanupJob from './modules/identity/sessionCleanup.job';
 import startFirmwareCleanupJob from './modules/devices/firmwareCleanup.job';
 import startWeatherSyncJob from './modules/environment/weatherSync.job';
+import startNdviSyncJob from './modules/environment/ndviSync.job';
 import startCategoryRulesJob from './modules/livestock/categoryRules.job';
 import startDwRefreshJob from './modules/analytics/dwRefresh.job';
 
@@ -55,6 +56,7 @@ startImageCleanupJob();
 startSessionCleanupJob();
 startFirmwareCleanupJob();
 startWeatherSyncJob();
+startNdviSyncJob();
 startCategoryRulesJob();
 startDwRefreshJob();
 

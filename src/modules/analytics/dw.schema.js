@@ -138,6 +138,16 @@ export const factBatteryDaily = dw.table('fact_battery_daily', {
   percent: integer().notNull(),
 }, (table) => [primaryKey({ columns: [table.dateKey, table.collarId] })]);
 
+// Vegetation index of each zone on each date with a usable satellite image (zone_ndvi_observations)
+export const factZoneNdvi = dw.table('fact_zone_ndvi', {
+  dateKey: date('date_key', { mode: 'string' }).notNull(),
+  zoneId: integer('zone_id').notNull(),
+  ndviMean: real('ndvi_mean').notNull(),
+  ndviMin: real('ndvi_min').notNull(),
+  ndviMax: real('ndvi_max').notNull(),
+  validFraction: real('valid_fraction').notNull(),
+}, (table) => [primaryKey({ columns: [table.dateKey, table.zoneId] })]);
+
 export const etlRuns = dw.table('etl_runs', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   startedAt: ts('started_at').notNull(),
