@@ -55,23 +55,23 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 
 | Archivo | Qué prueba |
 |---|---|
-| `services/apiClient` | Cliente HTTP: renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error. |
+| `shared/api/apiClient` | Cliente HTTP: validación de la respuesta con su esquema, renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error. |
 | `components/auth/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
 | `pages/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
 | `pages/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
 | `pages/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
 | `pages/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
-| `components/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
-| `components/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
-| `components/form/MultiSelectField` | Agregar y quitar selecciones. |
-| `components/form/CheckboxGroupField` | Marcar y desmarcar opciones (los roles de un usuario), en orden, y opciones deshabilitadas. |
+| `shared/ui/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
+| `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
+| `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones. |
+| `shared/ui/form/CheckboxGroupField` | Marcar y desmarcar opciones (los roles de un usuario), en orden, y opciones deshabilitadas. |
 | `components/history/RangePicker` | Selector de rango del historial: presets, rango personalizado, períodos anterior y siguiente. |
-| `hooks/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
-| `hooks/useEntityList` | Listados: carga, error y borrado con confirmación. |
-| `hooks/useListSearch` | Búsqueda en listados: sin acentos ni mayúsculas, varios campos, máximo 8 resultados. |
-| `utils/dateRange` | Rangos del historial: "Hoy" (mínimo 6 h), rangos móviles y fijos, desplazamiento, textos. |
-| `utils/dateHelper` | Tiempo transcurrido ("hace 5 min"). |
-| `utils/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
+| `shared/lib/polling/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
+| `shared/lib/list/useEntityList` | Listados: carga, error y borrado con confirmación. |
+| `shared/lib/list/useListSearch` | Búsqueda en listados: sin acentos ni mayúsculas, varios campos, máximo 8 resultados. |
+| `shared/lib/date/dateRange` | Rangos del historial: "Hoy" (mínimo 6 h), rangos móviles y fijos, desplazamiento, textos. |
+| `shared/lib/date/dateHelper` | Tiempo transcurrido ("hace 5 min"). |
+| `shared/lib/geo/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
 | `utils/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
 | `utils/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
 | `utils/health` | Cómo se muestra cada evento (título y datos según el tipo) y la edad de la vaca. |
