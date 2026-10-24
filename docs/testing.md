@@ -56,11 +56,11 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | Archivo | Qué prueba |
 |---|---|
 | `shared/api/apiClient` | Cliente HTTP: validación de la respuesta con su esquema, renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error. |
-| `components/auth/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
-| `pages/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
-| `pages/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
-| `pages/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
-| `pages/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
+| `app/routes/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
+| `pages/login/ui/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
+| `pages/settings/cows/form/ui/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
+| `pages/settings/cows/detail/ui/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
+| `pages/settings/cows/new-event/ui/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
 | `shared/ui/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
 | `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
 | `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones. |
