@@ -1,9 +1,12 @@
 import { FACTORY_PARAMS } from './collarParams.constants';
 
-// Approximate LiPo discharge curve (single cell, at rest): [volts, percent]
+// Discharge curve measured on a full cycle of a collar without solar panel (October 2026): with a
+// steady daily consumption, the charge left is the fraction of the cycle left (see
+// scripts/battery_curve.sql). It went from 3.90 V to stopping at about 3.40 V in 19 days.
+// 0 % is when the collar stops working, not an empty cell. [volts, percent]
 const CURVE = [
-  [4.2, 100], [4.1, 90], [4.0, 80], [3.9, 65], [3.8, 50],
-  [3.7, 35], [3.6, 20], [3.5, 10], [3.4, 5], [3.3, 0],
+  [3.92, 100], [3.86, 92], [3.80, 83], [3.72, 72], [3.66, 62], [3.62, 47],
+  [3.58, 32], [3.52, 22], [3.46, 12], [3.40, 2], [3.38, 0],
 ];
 
 export function batteryPercent(voltage) {

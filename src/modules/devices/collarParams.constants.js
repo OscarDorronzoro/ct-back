@@ -16,8 +16,10 @@ const COLLAR_PARAMS = {
   outsideGpsMin: { min: 0, max: 240, factory: 10 },
   buzzerMaxSec: { min: 0, max: 600, factory: 60 },
   zoneWatchMax: { min: 30, max: 1800, factory: 180 },
-  batteryLow: { min: 3000, max: 4200, factory: 3500 },
-  batteryCritical: { min: 2900, max: 4000, factory: 3300 },
+  // From the measured discharge curve (battery.util): about 5 and 2 days left without sun. The
+  // collar stops at about 3300 mV, so a lower critical threshold would never be reached.
+  batteryLow: { min: 3000, max: 4200, factory: 3550 },
+  batteryCritical: { min: 2900, max: 4000, factory: 3450 },
   outsideDayTime: { min: 0, max: 86399, factory: 32400 },
   outsideNightTime: { min: 0, max: 86399, factory: 7200 },
 };

@@ -524,7 +524,8 @@ Obtiene el detalle de una posición, para mostrarlo al seleccionarla en el mapa.
 ```
 
 - `battery`: lectura del mensaje de la posición o, si no tenía voltaje, la última anterior del collar
-  (`recordedAt` indica de cuándo es). `percent` es una estimación según la curva de descarga LiPo y
+  (`recordedAt` indica de cuándo es). `percent` es una estimación según la curva de descarga medida en un ciclo completo de un collar
+  (`scripts/battery_curve.sql`; 0 % es cuando el collar deja de funcionar, cerca de 3,30 V) y
   `level` (`ok`, `low`, `critical`) usa los umbrales configurados en el collar. `null` si no hay lecturas.
 - `state`: estado del collar en el momento de la posición, según los eventos `sleep`/`wake`.
   `status`: `sleeping` o `awake`.
@@ -1349,8 +1350,8 @@ Parámetros (enteros; las horas son segundos desde las 00:00 UTC):
 | `outsideGpsMin` | min | 0..240 | 10 |
 | `buzzerMaxSec` | s | 0..600 | 60 |
 | `zoneWatchMax` | s | 30..1800 | 180 |
-| `batteryLow` | mV | 3000..4200 | 3500 |
-| `batteryCritical` | mV | 2900..4000 (< `batteryLow`) | 3300 |
+| `batteryLow` | mV | 3000..4200 | 3550 |
+| `batteryCritical` | mV | 2900..4000 (< `batteryLow`) | 3450 |
 | `outsideDayTime` | s UTC | 0..86399 | 32400 |
 | `outsideNightTime` | s UTC | 0..86399 | 7200 |
 
