@@ -55,7 +55,7 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 
 | Archivo | Qué prueba |
 |---|---|
-| `shared/api/apiClient` | Cliente HTTP: validación de la respuesta con su esquema, renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error. |
+| `shared/api/apiClient` | Cliente HTTP: validación de la respuesta con su esquema, renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error traducidos (nunca el código del backend) y `errorMessage`. |
 | `app/routes/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
 | `pages/login/ui/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
 | `pages/settings/cows/form/ui/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
@@ -63,7 +63,11 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `pages/settings/cows/new-event/ui/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
 | `shared/ui/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
 | `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
-| `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones. |
+| `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones; con la lista vacía, agregar muestra un segundo selector. |
+| `shared/ui/entity-list-page/EntityListPage` | Pantalla de listado: búsqueda, botón de agregar según permiso, confirmación antes de eliminar y panel lateral (mapa). |
+| `shared/lib/form/useEntityForm` | Formularios: alta vacía, carga de lo que se edita, validación, guardado y mensajes de error (de la API o del formulario). |
+| `shared/lib/click-outside/useClickOutside` | Cierre de menús al tocar afuera, y nada mientras está cerrado. |
+| `shared/lib/format/formatNumber` | Números con separadores de Argentina, decimales exactos, abreviados y sin valor. |
 | `shared/ui/form/CheckboxGroupField` | Marcar y desmarcar opciones (los roles de un usuario), en orden, y opciones deshabilitadas. |
 | `features/select-history-range/ui/RangePicker` | Selector de rango del historial: presets, rango personalizado, períodos anterior y siguiente. |
 | `shared/lib/polling/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
@@ -75,6 +79,7 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `widgets/map/lib/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
 | `entities/zone/model/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
 | `entities/health-event/model/eventDisplay` | Cómo se muestra cada evento (título y datos según el tipo). |
+| `features/draw-zone/lib/drawGuide` | Guía del dibujo con mira (pantallas táctiles): lados dibujados, el siguiente, el de cierre y los vértices. |
 | `entities/cow/model/cow` | Nombre para mostrar y edad de la vaca. |
 | `widgets/explorer/model/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
 | `widgets/explorer/ui/Explorer` | Explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
