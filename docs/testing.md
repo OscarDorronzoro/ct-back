@@ -46,6 +46,10 @@ TypeScript, entorno Node. En `src/`:
 | `modules/analytics/explorer` | Explorador: catálogo según permisos, joins solo de las dimensiones usadas, valores como parámetros (no en el SQL), orden y límite; validación de la consulta. |
 | `modules/livestock/categoryRules.util` | Categoría por edad y castración: cortes de 12 y 24 meses, nunca retrocede, vaquillona → vaca manual, cambio de secuencia al castrar o anular. |
 | `modules/environment/ndvi.util` | NDVI satelital: rangos a pedir (un año la primera vez, en tramos de 90 días; luego 15 días hacia atrás), imágenes con al menos la mitad de la zona despejada, días sin imagen. |
+| `shared/utils/runInOrder` | Pasos asincrónicos uno después del otro, en orden. |
+| `modules/telemetry/zoneEvents.util` | Eventos de zona de una vaca: salida del campo (solo si hay zonas generales) y regreso, entrada y salida de una zona de exclusión, cada uno con dos posiciones seguidas (no con una); estado de la vaca desde sus últimos eventos. |
+| `modules/notifications/eventMessage.util` | Texto de cada notificación: vaca, collar, zona y hora del campo. |
+| `modules/notifications/notification.validator` | Suscripción del navegador a las notificaciones: endpoint https y claves base64url. |
 | `modules/environment/weather.util` | Sync del clima: cuántos días pedir, conversión de la respuesta de Open-Meteo, descarte del pronóstico. |
 
 ## Frontend
@@ -80,6 +84,7 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `entities/zone/model/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
 | `entities/health-event/model/eventDisplay` | Cómo se muestra cada evento (título y datos según el tipo). |
 | `features/draw-zone/lib/drawGuide` | Guía del dibujo con mira (pantallas táctiles): lados dibujados, el siguiente, el de cierre y los vértices. |
+| `features/push-notifications/lib/serverKey` | Clave del servidor (base64url) en bytes para suscribir el navegador. |
 | `entities/cow/model/cow` | Nombre para mostrar y edad de la vaca. |
 | `widgets/explorer/model/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
 | `widgets/explorer/ui/Explorer` | Explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |

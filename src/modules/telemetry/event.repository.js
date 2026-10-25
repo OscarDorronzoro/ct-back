@@ -63,6 +63,25 @@ const eventRepository = {
       .orderBy(events.collarId, desc(events.occurredAt), desc(events.id));
   },
 
+  // Last event of each cow among the given types (the zone state of the cows)
+  async findLastByCows(cowIds, eventTypeIds, tx = db) {
+    if (cowIds.length === 0) {
+      return [];
+    }
+
+    return tx
+      .selectDistinctOn([events.cowId], {
+        cowId: events.cowId,
+        eventTypeId: events.eventTypeId,
+        zoneId: events.zoneId,
+      })
+      .from(events)
+      .where(and(
+        inArray(events.cowId, cowIds),
+        inArray(events.eventTypeId, eventTypeIds),
+      ))
+      .orderBy(events.cowId, desc(events.occurredAt), desc(events.id));
+  },
 };
 
 export default eventRepository;

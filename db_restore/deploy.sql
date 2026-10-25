@@ -533,3 +533,52 @@ CREATE TABLE dw.fact_zone_ndvi (
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON dw.fact_zone_ndvi TO ctapp;
+
+
+
+-- Push notifications ----------------------------------------------------------------------------------------
+-- Web Push (VAPID): needs VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT in the .env (without
+-- them nothing is sent). Generate the keys with `npx web-push generate-vapid-keys`.
+-- Run BEFORE starting the new backend: events.event_type_id references event_types, and the
+-- processing of the messages records the new zone event types.
+
+-- One per device that turned them on. Tied to the session it was turned on with: logging out or a
+-- revoked session stops them on that device (the cleanup of sessions deletes them).
+CREATE TABLE push_subscriptions (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  session_id uuid NOT NULL REFERENCES user_sessions (id) ON DELETE CASCADE,
+  endpoint text NOT NULL UNIQUE,
+  p256dh character varying NOT NULL,
+  auth character varying NOT NULL,
+  user_agent character varying(512),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_sent_at timestamp with time zone
+);
+
+COMMENT ON TABLE push_subscriptions IS 'Devices that receive push notifications (Web Push); deleted when the push service says they are gone';
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON push_subscriptions TO ctapp;
+
+-- Zone events of the cows, recorded by the processing of the messages (telemetry/zoneEvents.util):
+-- left the field (every general zone) and came back, entered an exclusion zone and left it. Two
+-- positions in a row confirm each one. events.zone_id: the exclusion zone.
+INSERT INTO event_types (id, name) OVERRIDING SYSTEM VALUE VALUES
+  (12, 'fieldExit'),
+  (13, 'fieldReturn'),
+  (14, 'exclusionEnter'),
+  (15, 'exclusionExit')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('event_types', 'id'), (SELECT max(id) FROM event_types));
+
+-- Last event already handled by the notifications (one row). It starts at the last event there is:
+-- the history is not notified.
+CREATE TABLE notification_cursor (
+  id boolean PRIMARY KEY DEFAULT true CHECK (id),
+  last_event_id bigint NOT NULL
+);
+
+INSERT INTO notification_cursor (last_event_id) SELECT COALESCE(max(id), 0) FROM events;
+
+GRANT SELECT, INSERT, UPDATE ON notification_cursor TO ctapp;

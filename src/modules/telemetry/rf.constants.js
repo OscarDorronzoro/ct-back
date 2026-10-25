@@ -12,6 +12,11 @@ export const EVENT_TYPES = {
   BATTERY_CRITICAL: 9,
   BATTERY_RECOVERED: 10,
   GPS_FAILURE: 11,
+  // Zone changes of a cow (zoneEvents.util), confirmed by two positions in a row
+  FIELD_EXIT: 12,
+  FIELD_RETURN: 13,
+  EXCLUSION_ENTER: 14,
+  EXCLUSION_EXIT: 15,
 };
 
 export const INVALID_REASONS = {

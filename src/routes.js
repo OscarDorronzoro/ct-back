@@ -18,6 +18,7 @@ import zoneRouter from './modules/monitoring/zone.routes';
 import weatherRouter from './modules/environment/weather.routes';
 import healthRouter from './modules/health/health.routes';
 import explorerRouter from './modules/analytics/explorer.routes';
+import notificationRouter from './modules/notifications/notification.routes';
 
 const router = Router();
 
@@ -44,5 +45,6 @@ router.use('/zones', zoneRouter);
 router.use('/weather', weatherRouter);
 router.use('/health', healthRouter);
 router.use('/analytics', explorerRouter);
+router.use('/notifications', notificationRouter);
 
 export default router;

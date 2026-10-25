@@ -1554,6 +1554,62 @@ Elimina una zona. Requiere `zones:write`.
 - 403 Forbidden
 - 404 Not Found
 
+## Notifications
+
+Notificaciones push (Web Push) del dispositivo: se activan desde la pantalla Notificaciones. Requieren
+`map:read`. El backend necesita `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT` en el `.env`
+(sin ellas no se envía nada).
+
+El procesamiento de los mensajes del gateway registra en `events` los cambios de zona de cada vaca
+(`telemetry/zoneEvents.util`), confirmados con dos posiciones seguidas:
+
+| Evento | Cuándo |
+|---|---|
+| `fieldExit` (12) | Salió del campo: fuera de todas las zonas generales (si hay alguna). |
+| `fieldReturn` (13) | Volvió al campo. |
+| `exclusionEnter` (14) | Entró a una zona de exclusión (`zone_id`). |
+| `exclusionExit` (15) | Salió de ella. |
+
+Un job cada 10 segundos (`notifications/deliverNotifications.job`) lee los eventos nuevos desde el
+último que entregó (`notification_cursor`) y notifica `fieldExit` y `exclusionEnter`. Los eventos de
+más de 30 minutos (un gateway que envía su cola tarde) no se notifican.
+
+La notificación lleva `{ title, body, url, tag }`; `url` abre el mapa en la vaca (`/?cow=8`).
+
+### GET /api/notifications/push/key
+
+Clave pública del servidor para suscribir el navegador.
+
+```json
+{ "publicKey": "BJ…" }
+```
+
+`publicKey` es `null` si el servidor no tiene configuradas las notificaciones.
+
+### GET /api/notifications/push/subscription?endpoint=…
+
+Si este dispositivo recibe notificaciones en esta sesión: `{ "active": true }`. Cerrar la sesión (o que
+la revoque un administrador) las corta en ese dispositivo.
+
+### PUT /api/notifications/push/subscription
+
+Activa las notificaciones del dispositivo para el usuario y la sesión actuales. El cuerpo es
+`PushSubscription.toJSON()` del navegador:
+
+```json
+{ "endpoint": "https://fcm.googleapis.com/fcm/send/…", "keys": { "p256dh": "BOr…", "auth": "k8J…" } }
+```
+
+Status: 204. Si el dispositivo ya estaba suscrito (otro usuario u otra sesión), pasa a este.
+
+### DELETE /api/notifications/push/subscription
+
+Desactiva las del dispositivo (solo las propias): `{ "endpoint": "…" }`. Status: 204.
+
+### POST /api/notifications/push/test
+
+Envía una notificación de prueba a los dispositivos del usuario: `{ "sent": 1 }` (cuántos la aceptaron).
+
 ## Weather
 
 Clima horario del campo. Lo trae de [Open-Meteo](https://open-meteo.com/) (API de historial de

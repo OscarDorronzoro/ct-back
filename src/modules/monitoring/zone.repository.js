@@ -66,16 +66,31 @@ const zoneRepository = {
 
   // Zone of a point: the smallest active zone that contains it (the most specific one, e.g. a
   // paddock inside a general zone), or null if it is outside every zone
-  async findIdContaining({ latitude, longitude }, tx = db) {
-    const { rows: [zone] } = await tx.execute(sql`
-      SELECT id
-      FROM zones
-      WHERE deleted_at IS NULL
-        AND ST_Covers(polygon, ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography)
-      ORDER BY ST_Area(polygon), id
-      LIMIT 1`);
+  // Where a point is: the smallest zone that contains it (positions.zone_id), whether it's in the
+  // field (inside some general zone) and the exclusion zone it's in (the smallest).
+  // hasField: there is some general zone (without one there's no "outside the field").
+  async findStatus({ latitude, longitude }, tx = db) {
+    const { rows: [row] } = await tx.execute(sql`
+      SELECT
+        EXISTS (
+          SELECT 1 FROM zones g JOIN zone_types gt ON gt.id = g.zone_type_id
+          WHERE g.deleted_at IS NULL AND gt.name = 'general'
+        ) AS has_field,
+        (array_agg(z.id ORDER BY ST_Area(z.polygon), z.id))[1] AS zone_id,
+        COALESCE(bool_or(t.name = 'general'), false) AS in_field,
+        (array_agg(z.id ORDER BY ST_Area(z.polygon), z.id) FILTER (WHERE t.name = 'exclusion'))[1]
+          AS exclusion_zone_id
+      FROM zones z
+      JOIN zone_types t ON t.id = z.zone_type_id
+      WHERE z.deleted_at IS NULL
+        AND ST_Covers(z.polygon, ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography)`);
 
-    return zone?.id ?? null;
+    return {
+      zoneId: row.zone_id,
+      hasField: row.has_field,
+      inField: row.in_field,
+      exclusionZoneId: row.exclusion_zone_id,
+    };
   },
 
   // Self-intersecting polygons are not valid

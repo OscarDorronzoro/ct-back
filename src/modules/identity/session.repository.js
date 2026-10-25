@@ -6,8 +6,8 @@ import db from '../../shared/db/drizzle';
 import userSessions from './session.schema';
 import refreshTokens from './refreshToken.schema';
 
-// Not revoked and its current token still valid
-function isActive(now, tx) {
+// Not revoked and its current token still valid (also used by the push subscriptions)
+export function isActive(now, tx) {
   return and(
     isNull(userSessions.revokedAt),
     exists(

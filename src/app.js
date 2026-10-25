@@ -14,6 +14,7 @@ import startWeatherSyncJob from './modules/environment/weatherSync.job';
 import startNdviSyncJob from './modules/environment/ndviSync.job';
 import startCategoryRulesJob from './modules/livestock/categoryRules.job';
 import startDwRefreshJob from './modules/analytics/dwRefresh.job';
+import startDeliverNotificationsJob from './modules/notifications/deliverNotifications.job';
 
 // Constant definition
 const API_PORT = Number(process.env.PORT) || 3000;
@@ -59,5 +60,6 @@ startWeatherSyncJob();
 startNdviSyncJob();
 startCategoryRulesJob();
 startDwRefreshJob();
+startDeliverNotificationsJob();
 
 export default app;

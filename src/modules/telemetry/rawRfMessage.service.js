@@ -8,6 +8,9 @@ import positionRepository from '../monitoring/position.repository';
 import zoneRepository from '../monitoring/zone.repository';
 import collarRepository from '../devices/collar.repository';
 import eventRepository from './event.repository';
+import {
+  zoneEvents, zoneStateOf, FIELD_EVENTS, EXCLUSION_EVENTS, INITIAL_ZONE_STATE,
+} from './zoneEvents.util';
 import firmwareRepository from '../devices/firmware.repository';
 
 import logger from '../../shared/utils/logger';
@@ -148,18 +151,60 @@ function batteryLevel(voltage, params, previous) {
 
 // State needed to derive events, per collar id. Updated while the batch is processed, so a
 // collar with several messages in the batch doesn't repeat events.
-async function loadEventState(collarIds, tx) {
-  const [lastSleep, lastBattery] = await Promise.all([
+async function loadEventState(collarIds, cowIds, tx) {
+  const [lastSleep, lastBattery, lastField, lastExclusion] = await Promise.all([
     eventRepository.findLastByCollars(collarIds, SLEEP_EVENTS, tx),
     eventRepository.findLastByCollars(collarIds, BATTERY_EVENTS, tx),
+    eventRepository.findLastByCows(cowIds, FIELD_EVENTS, tx),
+    eventRepository.findLastByCows(cowIds, EXCLUSION_EVENTS, tx),
   ]);
+
+  const fieldByCow = new Map(lastField.map((e) => [e.cowId, e]));
+  const exclusionByCow = new Map(lastExclusion.map((e) => [e.cowId, e]));
 
   return {
     sleep: new Map(lastSleep.map((e) => [e.collarId, e.eventTypeId])),
     battery: new Map(lastBattery.map((e) => [e.collarId, e.eventTypeId])),
     // Firmware code reported in this batch; before that, the one stored in the collar
     firmware: new Map(),
+    // Zone state of each cow (zoneEvents.util)
+    zone: new Map(cowIds.map((id) => [
+      id,
+      zoneStateOf(fieldByCow.get(id), exclusionByCow.get(id)),
+    ])),
+    // Zone status of the last position of each collar in this batch (the "previous" of the next)
+    zoneStatus: new Map(),
   };
+}
+
+// Zone events of the cow after a stored position (left the field, entered an exclusion zone...).
+// status: where the position is (zoneRepository.findStatus); prevPosition: the one before it.
+async function processZoneEvents(position, status, prevPosition, state, tx) {
+  const { collarId, cowId } = position;
+  const lastStatus = state.zoneStatus.get(collarId);
+  state.zoneStatus.set(collarId, status);
+
+  // Two positions in a row of the same cow (not the first one, nor one from another cow)
+  if (!cowId || !prevPosition || prevPosition.cowId !== cowId) {
+    return;
+  }
+
+  const previous = lastStatus ?? await zoneRepository.findStatus(prevPosition.location, tx);
+  const { events: found, state: next } = zoneEvents(
+    state.zone.get(cowId) ?? INITIAL_ZONE_STATE,
+    status,
+    previous,
+  );
+  state.zone.set(cowId, next);
+
+  await eventRepository.createMany(found.map((event) => ({
+    ...event,
+    cowId,
+    collarId,
+    positionId: position.id,
+    rawRfMessageId: position.rawRfMessageId,
+    occurredAt: position.recordedAt,
+  })), tx);
 }
 
 // The collar reports its firmware (boot, ota): keep collars.firmwareCode/firmwareVersion in sync
@@ -384,7 +429,8 @@ const rawRfMessageService = {
     try {
       await db.transaction(async (tx) => {
         const processedAt = new Date();
-        const eventState = await loadEventState(collarIds, tx);
+        const cowIds = [...new Set(raws.map((r) => r.cowId).filter(Boolean))];
+        const eventState = await loadEventState(collarIds, cowIds, tx);
         let insertTime = 0;
         let updateTime = 0;
 
@@ -482,8 +528,10 @@ const rawRfMessageService = {
             if (invalid === INVALID_REASONS.OK) {
               const t1 = Date.now();
               // Zones as they are when the position arrives: later changes don't rewrite history
-              position.zoneId = await zoneRepository.findIdContaining(position.location, tx);
-              await positionRepository.create(position, tx);
+              const zoneStatus = await zoneRepository.findStatus(position.location, tx);
+              position.zoneId = zoneStatus.zoneId;
+              const created = await positionRepository.create(position, tx);
+              await processZoneEvents(created, zoneStatus, prevPosition, eventState, tx);
               insertTime += Date.now() - t1;
               previousPositions[position.collarId] = position;
             }
