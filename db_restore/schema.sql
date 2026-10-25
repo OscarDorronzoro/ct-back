@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict VTlrCFAuhdbbuWCXfaR5V1eEAhSTeoSY9nIY1T0c586kByBvyV7EHLc8EvVP7Z7
+\restrict 5ObBlboMOt7nkdzqlUq9K6BvAvycmWu77DtEhUVbFRebJizVZIFUS2v8neXSeSf
 
--- Dumped from database version 17.11 (Debian 17.11-0+deb13u1)
--- Dumped by pg_dump version 17.11 (Debian 17.11-0+deb13u1)
+-- Dumped from database version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
+-- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -95,11 +95,19 @@ ALTER TABLE public.breeds ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 CREATE TABLE public.collars (
     id integer NOT NULL,
-    firmware_version character varying NOT NULL,
+    firmware_version character varying,
     description text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    deleted_at timestamp with time zone
+    deleted_at timestamp with time zone,
+    code smallint NOT NULL,
+    mac character varying(12),
+    params jsonb,
+    firmware_code smallint,
+    CONSTRAINT collars_code_check CHECK (((code >= 1) AND (code <= 255))),
+    CONSTRAINT collars_firmware_code_check CHECK (((firmware_code >= 1) AND (firmware_code <= 255))),
+    CONSTRAINT collars_firmware_version_check CHECK (((firmware_version)::text ~ '^\d+\.\d+\.\d+$'::text)),
+    CONSTRAINT collars_mac_check CHECK (((mac)::text ~ '^[0-9a-f]{12}$'::text))
 );
 
 
@@ -109,6 +117,71 @@ CREATE TABLE public.collars (
 
 ALTER TABLE public.collars ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.collars_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: command_targets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.command_targets (
+    id bigint NOT NULL,
+    command_id integer NOT NULL,
+    collar_id integer NOT NULL,
+    status character varying(10) DEFAULT 'pending'::character varying NOT NULL,
+    result character varying(12),
+    gateway_id integer,
+    deliveries smallint DEFAULT 0 NOT NULL,
+    delivered_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    CONSTRAINT command_targets_done_check CHECK ((((status)::text = 'done'::text) = (result IS NOT NULL))),
+    CONSTRAINT command_targets_result_check CHECK (((result)::text = ANY ((ARRAY['ok'::character varying, 'duplicate'::character varying, 'badParams'::character varying, 'unsupported'::character varying, 'noAnswer'::character varying, 'canceled'::character varying])::text[]))),
+    CONSTRAINT command_targets_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'delivered'::character varying, 'done'::character varying])::text[])))
+);
+
+
+--
+-- Name: command_targets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.command_targets ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.command_targets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: commands; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.commands (
+    id integer NOT NULL,
+    type character varying(20) NOT NULL,
+    payload jsonb,
+    target character varying(10) NOT NULL,
+    created_by integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    canceled_at timestamp with time zone,
+    CONSTRAINT commands_target_check CHECK (((target)::text = ANY ((ARRAY['collars'::character varying, 'all'::character varying])::text[]))),
+    CONSTRAINT commands_type_check CHECK (((type)::text = ANY ((ARRAY['params'::character varying, 'resetParams'::character varying, 'diag'::character varying, 'reboot'::character varying, 'zone'::character varying, 'zoneClear'::character varying, 'ota'::character varying, 'otaCancel'::character varying, 'assignCode'::character varying])::text[])))
+);
+
+
+--
+-- Name: commands_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.commands ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.commands_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -181,7 +254,7 @@ CREATE TABLE public.cows (
     current_collar_id integer,
     ear_tag character varying DEFAULT 'S/N'::character varying,
     alias character varying,
-    birth_date timestamp with time zone,
+    birth_date timestamp without time zone,
     image_url text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
@@ -252,6 +325,41 @@ CREATE TABLE public.events (
 
 ALTER TABLE public.events ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: firmwares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.firmwares (
+    id integer NOT NULL,
+    code smallint NOT NULL,
+    version character varying(20) NOT NULL,
+    filename character varying NOT NULL,
+    size integer NOT NULL,
+    md5 character(32) NOT NULL,
+    sha256 character(64) NOT NULL,
+    notes text,
+    created_by integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT firmwares_code_check CHECK (((code >= 1) AND (code <= 255))),
+    CONSTRAINT firmwares_version_check CHECK (((version)::text ~ '^\d+\.\d+\.\d+$'::text))
+);
+
+
+--
+-- Name: firmwares_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.firmwares ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.firmwares_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -378,7 +486,7 @@ ALTER TABLE public.positions ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 CREATE TABLE public.raw_rf_messages (
     id bigint NOT NULL,
     invalid_reason_id integer,
-    collar_id integer NOT NULL,
+    collar_code integer,
     recorded_at timestamp with time zone NOT NULL,
     location public.geography(Point,4326),
     altitude real,
@@ -392,7 +500,12 @@ CREATE TABLE public.raw_rf_messages (
     gateway_id integer,
     processed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    type character varying(16),
+    integrity character varying(16),
+    raw character varying(128),
+    seq smallint,
+    data jsonb
 );
 
 
@@ -419,8 +532,10 @@ CREATE TABLE public.refresh_tokens (
     user_id integer NOT NULL,
     token_hash character varying(64) NOT NULL,
     expires_at timestamp with time zone NOT NULL,
-    revoked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    rotated_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    session_id uuid NOT NULL,
+    ip inet
 );
 
 
@@ -435,6 +550,25 @@ ALTER TABLE public.refresh_tokens ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
     NO MINVALUE
     NO MAXVALUE
     CACHE 1
+);
+
+
+--
+-- Name: user_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_used_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_ip inet,
+    last_ip inet,
+    user_agent character varying(512),
+    revoked_at timestamp with time zone,
+    revoked_reason character varying(16),
+    CONSTRAINT user_sessions_revoked_check CHECK (((revoked_at IS NULL) = (revoked_reason IS NULL))),
+    CONSTRAINT user_sessions_revoked_reason_check CHECK (((revoked_reason)::text = ANY ((ARRAY['logout'::character varying, 'reuse'::character varying, 'admin'::character varying, 'password'::character varying])::text[])))
 );
 
 
@@ -472,7 +606,7 @@ ALTER TABLE public.users ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 CREATE TABLE public.zone_types (
     id integer NOT NULL,
-    name character varying
+    name character varying NOT NULL
 );
 
 
@@ -497,11 +631,12 @@ ALTER TABLE public.zone_types ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 CREATE TABLE public.zones (
     id integer NOT NULL,
     zone_type_id integer NOT NULL,
-    name character varying,
+    name character varying NOT NULL,
     description text,
-    polygon public.geography(Polygon,4326),
+    polygon public.geography(Polygon,4326) NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone
 );
 
 
@@ -541,6 +676,30 @@ ALTER TABLE ONLY public.breeds
 
 ALTER TABLE ONLY public.collars
     ADD CONSTRAINT collars_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: command_targets command_targets_command_collar_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.command_targets
+    ADD CONSTRAINT command_targets_command_collar_key UNIQUE (command_id, collar_id);
+
+
+--
+-- Name: command_targets command_targets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.command_targets
+    ADD CONSTRAINT command_targets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: commands commands_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.commands
+    ADD CONSTRAINT commands_pkey PRIMARY KEY (id);
 
 
 --
@@ -592,6 +751,14 @@ ALTER TABLE ONLY public.cows
 
 
 --
+-- Name: event_types event_types_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.event_types
+    ADD CONSTRAINT event_types_name_key UNIQUE (name);
+
+
+--
 -- Name: event_types event_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -605,6 +772,14 @@ ALTER TABLE ONLY public.event_types
 
 ALTER TABLE ONLY public.events
     ADD CONSTRAINT events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: firmwares firmwares_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.firmwares
+    ADD CONSTRAINT firmwares_pkey PRIMARY KEY (id);
 
 
 --
@@ -680,11 +855,27 @@ ALTER TABLE ONLY public.refresh_tokens
 
 
 --
+-- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: zone_types zone_types_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.zone_types
+    ADD CONSTRAINT zone_types_name_key UNIQUE (name);
 
 
 --
@@ -704,10 +895,59 @@ ALTER TABLE ONLY public.zones
 
 
 --
--- Name: idx_positions_collar; Type: INDEX; Schema: public; Owner: -
+-- Name: collars_code_active_key; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_positions_collar ON public.positions USING btree (collar_id);
+CREATE UNIQUE INDEX collars_code_active_key ON public.collars USING btree (code) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: collars_mac_active_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX collars_mac_active_key ON public.collars USING btree (mac) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: firmwares_code_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX firmwares_code_key ON public.firmwares USING btree (code);
+
+
+--
+-- Name: firmwares_version_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX firmwares_version_key ON public.firmwares USING btree (version);
+
+
+--
+-- Name: idx_command_targets_open; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_command_targets_open ON public.command_targets USING btree (collar_id) WHERE ((status)::text <> 'done'::text);
+
+
+--
+-- Name: idx_events_collar_occurred_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_events_collar_occurred_at ON public.events USING btree (collar_id, occurred_at);
+
+
+--
+-- Name: idx_events_type_occurred_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_events_type_occurred_at ON public.events USING btree (event_type_id, occurred_at);
+
+
+--
+-- Name: idx_positions_collar_recorded_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_positions_collar_recorded_at ON public.positions USING btree (collar_id, recorded_at DESC);
 
 
 --
@@ -732,6 +972,13 @@ CREATE INDEX idx_positions_recorded_at ON public.positions USING btree (recorded
 
 
 --
+-- Name: idx_raw_rf_collar_code_recorded_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_raw_rf_collar_code_recorded_at ON public.raw_rf_messages USING btree (collar_code, recorded_at);
+
+
+--
 -- Name: idx_raw_rf_location; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -739,10 +986,63 @@ CREATE INDEX idx_raw_rf_location ON public.raw_rf_messages USING gist (location)
 
 
 --
+-- Name: idx_raw_rf_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_raw_rf_pending ON public.raw_rf_messages USING btree (id) WHERE (processed_at IS NULL);
+
+
+--
+-- Name: idx_refresh_tokens_session; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_refresh_tokens_session ON public.refresh_tokens USING btree (session_id);
+
+
+--
+-- Name: idx_user_sessions_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_sessions_user ON public.user_sessions USING btree (user_id);
+
+
+--
 -- Name: idx_zones_polygon; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_zones_polygon ON public.zones USING gist (polygon);
+
+
+--
+-- Name: command_targets command_targets_collar_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.command_targets
+    ADD CONSTRAINT command_targets_collar_id_fkey FOREIGN KEY (collar_id) REFERENCES public.collars(id);
+
+
+--
+-- Name: command_targets command_targets_command_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.command_targets
+    ADD CONSTRAINT command_targets_command_id_fkey FOREIGN KEY (command_id) REFERENCES public.commands(id) ON DELETE CASCADE;
+
+
+--
+-- Name: command_targets command_targets_gateway_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.command_targets
+    ADD CONSTRAINT command_targets_gateway_id_fkey FOREIGN KEY (gateway_id) REFERENCES public.gateways(id);
+
+
+--
+-- Name: commands commands_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.commands
+    ADD CONSTRAINT commands_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
 
 
 --
@@ -842,6 +1142,14 @@ ALTER TABLE ONLY public.events
 
 
 --
+-- Name: firmwares firmwares_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.firmwares
+    ADD CONSTRAINT firmwares_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
 -- Name: positions positions_collar_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -874,11 +1182,27 @@ ALTER TABLE ONLY public.positions
 
 
 --
+-- Name: refresh_tokens refresh_tokens_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refresh_tokens
+    ADD CONSTRAINT refresh_tokens_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.user_sessions(id) ON DELETE CASCADE;
+
+
+--
 -- Name: refresh_tokens refresh_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.refresh_tokens
     ADD CONSTRAINT refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -893,5 +1217,5 @@ ALTER TABLE ONLY public.zones
 -- PostgreSQL database dump complete
 --
 
-\unrestrict VTlrCFAuhdbbuWCXfaR5V1eEAhSTeoSY9nIY1T0c586kByBvyV7EHLc8EvVP7Z7
+\unrestrict 5ObBlboMOt7nkdzqlUq9K6BvAvycmWu77DtEhUVbFRebJizVZIFUS2v8neXSeSf
 
