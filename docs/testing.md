@@ -3,9 +3,9 @@
 Tests unitarios con [Vitest](https://vitest.dev/), en backend y frontend. Cada test está junto al
 archivo que prueba (`x.test.ts` en el backend, `x.test.js` / `x.test.jsx` en el frontend).
 
-Prueban la lógica que no depende de la base ni de servicios externos: validaciones, cálculos y
-componentes. Los repositorios (SQL), los services con base de datos y la integración con el
-gateway no tienen tests automáticos.
+Los tests unitarios prueban la lógica que no depende de la base ni de servicios externos:
+validaciones, cálculos y componentes. Los de integración del backend (más abajo) prueban la API, el
+SQL y los jobs contra una base real.
 
 ## Ejecutar
 
@@ -14,6 +14,7 @@ gateway no tienen tests automáticos.
 | `npm test` | Corre todos los tests una vez. |
 | `npm run test:watch` | Los vuelve a correr al guardar. En el backend, `npm start` ya lo incluye. |
 | `npm run test:coverage` | Cobertura (solo backend). |
+| `npm run test:integration` | Tests de integración del backend (necesita Docker). |
 
 En el backend, `npm run release` corre lint, typecheck y tests antes de versionar, y se detiene si
 alguno falla.
@@ -51,6 +52,30 @@ TypeScript, entorno Node. En `src/`:
 | `modules/notifications/eventMessage.util` | Texto de cada notificación: vaca, collar, zona y hora del campo. |
 | `modules/notifications/notification.validator` | Suscripción del navegador a las notificaciones: endpoint https y claves base64url. |
 | `modules/environment/weather.util` | Sync del clima: cuántos días pedir, conversión de la respuesta de Open-Meteo, descarte del pronóstico. |
+
+## Integración (backend)
+
+Prueban la API y los jobs contra una base real: PostgreSQL 18 con PostGIS (la versión de producción) en
+Docker. Cada corrida levanta un contenedor nuevo con los datos en memoria, carga `db_restore/schema.sql`
+(producción, v1.0.0), `db_restore/reference-data.sql` y `db_restore/deploy.sql`, y lo borra al terminar.
+Así también comprueban que `deploy.sql` aplica sobre el schema de producción.
+
+- **Requisitos:** Docker. La primera vez descarga la imagen `postgis/postgis:18-3.6`.
+- **Comando:** `npm run test:integration` (no forma parte de `npm test`).
+- **Usuario de la app:** `ctapp`, solo con los permisos que le dan los scripts: un `GRANT` faltante
+  en `deploy.sql` falla acá.
+- **Requests:** a la app de Express con `supertest`, sin abrir un puerto.
+- **Jobs:** se llaman directamente (procesar mensajes, entregar notificaciones), sin esperar al cron.
+- **Servicios externos:** el envío de notificaciones (Web Push) es un mock: se verifica qué se mandaría.
+- **Aislamiento:** cada test empieza con las tablas vacías, menos los datos de referencia. Los archivos
+  corren uno después del otro.
+
+En `test/integration/`:
+
+| Archivo | Qué prueba |
+|---|---|
+| `sessions` | Login (cookies, `/me` con permisos, mismo error para usuario o contraseña incorrectos, tokens viejos con rol numérico); refresh con rotación, dos pestañas a la vez, reuso de un token rotado (cierra la sesión entera), token vencido; logout; sesiones de un usuario (cerrar una, cerrar todas menos la propia); permisos de cada rol en la API y unión de varios roles; el último administrador, también con dos administradores quitándose el rol o borrándose a la vez. |
+| `gateway` | Recepción con la clave del gateway (también revocado) y mensajes inválidos; posiciones con su vaca y la zona más chica que las contiene; motivos de mensajes inválidos (repetido, movimiento imposible, fuera del área, collar desconocido); eventos de sueño y despertar, niveles de batería con histéresis; salida y regreso al campo y entrada y salida de una zona de exclusión con dos posiciones seguidas, también entre lotes; notificaciones (una vez, con la vaca y el mapa, sin los regresos ni los eventos viejos, nada después de cerrar sesión, dispositivo dado de baja por el servicio, prueba); códigos distintos para collares creados a la vez. |
 
 ## Frontend
 

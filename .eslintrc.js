@@ -1,4 +1,7 @@
-const TEST_FILES = ['**/*.test.js', '**/*.test.ts', 'src/shared/testing/**', 'vitest.config.mts'];
+const TEST_FILES = [
+  '**/*.test.js', '**/*.test.ts', 'src/shared/testing/**', 'test/**', 'vitest.config.mts',
+  'vitest.integration.config.mts',
+];
 
 module.exports = {
   root: true,
