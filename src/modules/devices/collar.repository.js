@@ -1,6 +1,6 @@
 import {
   eq, and, or,
-  isNull, inArray,
+  isNull, inArray, sql,
 } from 'drizzle-orm';
 
 import db from '../../shared/db/drizzle';
@@ -103,6 +103,12 @@ const collarRepository = {
   },
 
   // Codes of every collar, deleted included
+  // Codes and macs are chosen and checked by reading the collars, then inserting: one collar at a
+  // time (until the transaction ends), so two creations at once don't take the same code
+  async lockCodes(tx) {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('collars.code'))`);
+  },
+
   async findAllCodes(tx = db) {
     return tx
       .select({

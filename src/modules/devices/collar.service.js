@@ -59,6 +59,7 @@ const collarService = {
 
   async create(values) {
     return db.transaction(async (tx) => {
+      await collarRepository.lockCodes(tx);
       await checkUnique(values, null, tx);
 
       const code = values.code ?? await allocateCode(tx);
@@ -69,6 +70,9 @@ const collarService = {
 
   async update(collarId, values) {
     return db.transaction(async (tx) => {
+      if (values.code !== undefined || values.mac) {
+        await collarRepository.lockCodes(tx);
+      }
       await checkUnique(values, collarId, tx);
 
       return collarRepository.update(collarId, values, tx);
@@ -100,6 +104,7 @@ const collarService = {
   async join(mac, retry = true) {
     try {
       return await db.transaction(async (tx) => {
+        await collarRepository.lockCodes(tx);
         let collar = await collarRepository.findByMac(mac, tx);
 
         if (!collar) {
