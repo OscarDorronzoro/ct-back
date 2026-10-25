@@ -1,4 +1,5 @@
 import cowGroupMembershipRepository from './cowGroupMembership.repository';
+import runInOrder from '../../shared/utils/runInOrder';
 
 // cowId, groupIds validated in cowService
 const cowGroupMembershipService = {
@@ -57,15 +58,9 @@ const cowGroupMembershipService = {
       tx,
     );
 
-    await Promise.all(
-      memberships.map((membership) => (
-        cowGroupMembershipRepository.close(
-          membership.id,
-          date,
-          tx,
-        )
-      )),
-    );
+    await runInOrder(memberships, (membership) => (
+      cowGroupMembershipRepository.close(membership.id, date, tx)
+    ));
   },
 
 };

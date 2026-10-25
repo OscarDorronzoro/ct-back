@@ -152,12 +152,11 @@ function batteryLevel(voltage, params, previous) {
 // State needed to derive events, per collar id. Updated while the batch is processed, so a
 // collar with several messages in the batch doesn't repeat events.
 async function loadEventState(collarIds, cowIds, tx) {
-  const [lastSleep, lastBattery, lastField, lastExclusion] = await Promise.all([
-    eventRepository.findLastByCollars(collarIds, SLEEP_EVENTS, tx),
-    eventRepository.findLastByCollars(collarIds, BATTERY_EVENTS, tx),
-    eventRepository.findLastByCows(cowIds, FIELD_EVENTS, tx),
-    eventRepository.findLastByCows(cowIds, EXCLUSION_EVENTS, tx),
-  ]);
+  // One after another: a transaction is one connection
+  const lastSleep = await eventRepository.findLastByCollars(collarIds, SLEEP_EVENTS, tx);
+  const lastBattery = await eventRepository.findLastByCollars(collarIds, BATTERY_EVENTS, tx);
+  const lastField = await eventRepository.findLastByCows(cowIds, FIELD_EVENTS, tx);
+  const lastExclusion = await eventRepository.findLastByCows(cowIds, EXCLUSION_EVENTS, tx);
 
   const fieldByCow = new Map(lastField.map((e) => [e.cowId, e]));
   const exclusionByCow = new Map(lastExclusion.map((e) => [e.cowId, e]));

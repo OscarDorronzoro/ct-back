@@ -7,6 +7,7 @@ import zoneRepository from '../monitoring/zone.repository';
 import AppError from '../../shared/errors/AppError';
 import { FACTORY_PARAMS } from './collarParams.constants';
 import haversine from '../../shared/utils/positionHelper';
+import runInOrder from '../../shared/utils/runInOrder';
 
 const SUCCESS_RESULTS = ['ok', 'duplicate'];
 
@@ -290,9 +291,10 @@ const commandService = {
         idsByResult.set(result, [...(idsByResult.get(result) ?? []), id]);
       });
 
-      const completedLists = await Promise.all([...idsByResult].map(
+      const completedLists = await runInOrder(
+        [...idsByResult],
         ([result, ids]) => commandRepository.completeTargets(ids, result, tx),
-      ));
+      );
       const completedIds = new Set(completedLists.flat().map((t) => t.id));
 
       // Accepted params changes: merged into each collar's params, in the reported order
@@ -319,9 +321,9 @@ const commandService = {
           : { ...FACTORY_PARAMS });
       });
 
-      await Promise.all([...paramsByCollar].map(([collarId, params]) => (
+      await runInOrder([...paramsByCollar], ([collarId, params]) => (
         collarRepository.update(collarId, { params, updatedAt: new Date() }, tx)
-      )));
+      ));
 
       return { updated: completedIds.size };
     });
