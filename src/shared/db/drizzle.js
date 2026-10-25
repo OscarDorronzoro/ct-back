@@ -8,10 +8,11 @@ const {
   DB_USERNAME,
   DB_PASSWORD,
   DB_HOST,
+  DB_PORT = 5432,
 } = process.env;
 
 const pool = new Pool({
-  connectionString: `postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}`,
+  connectionString: `postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`,
 });
 
 pool.on('error', (err) => {
