@@ -23,13 +23,25 @@ httpServer.listen(API_PORT, API_HOST, () => {
   logger.info(`Backend http listening on port ${API_PORT}, host ${API_HOST}`);
 });
 
-// Jobs
-startProcessPendingMessagesJob();
-startImageCleanupJob();
-startSessionCleanupJob();
-startFirmwareCleanupJob();
-startWeatherSyncJob();
-startNdviSyncJob();
-startCategoryRulesJob();
-startDwRefreshJob();
-startDeliverNotificationsJob();
+const JOBS = {
+  processPendingMessages: startProcessPendingMessagesJob,
+  imageCleanup: startImageCleanupJob,
+  sessionCleanup: startSessionCleanupJob,
+  firmwareCleanup: startFirmwareCleanupJob,
+  weatherSync: startWeatherSyncJob,
+  ndviSync: startNdviSyncJob,
+  categoryRules: startCategoryRulesJob,
+  dwRefresh: startDwRefreshJob,
+  deliverNotifications: startDeliverNotificationsJob,
+};
+
+// All of them, or the ones in JOBS (comma separated names): the e2e tests of the frontend start
+// only the ones they use (weather and NDVI call external services)
+const enabled = process.env.JOBS?.split(',').map((name) => name.trim()) ?? Object.keys(JOBS);
+
+enabled.forEach((name) => {
+  if (!JOBS[name]) {
+    throw new Error(`Unknown job in JOBS: ${name}`);
+  }
+  JOBS[name]();
+});
