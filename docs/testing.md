@@ -11,8 +11,11 @@ SQL y los jobs contra una base real.
 
 | Comando | Qué hace |
 |---|---|
-| `npm test` | Corre todos los tests una vez. |
+| `npm test` | Corre los tests unitarios una vez (en el frontend, solo los de lógica: los rápidos). |
 | `npm run test:watch` | Los vuelve a correr al guardar. En el backend, `npm start` ya lo incluye. |
+| `npm run test:ui` | Frontend: los tests de componentes y hooks, sobre un DOM simulado. |
+| `npm run test:all` | Frontend: los dos grupos (lo que corre antes de versionar). |
+| `npm run test:e2e` | Frontend: los tests end-to-end en Chromium contra el backend real (necesita Docker y `../backend`). |
 | `npm run test:coverage` | Cobertura (solo backend). |
 | `npm run test:integration` | Tests de integración del backend (necesita Docker). |
 
@@ -79,29 +82,21 @@ En `test/integration/`:
 
 ## Frontend
 
-Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo indican con
-`// @vitest-environment jsdom`). En `src/`:
+Dos grupos, en el mismo `vitest.config.js` (proyectos de Vitest):
+
+- **Lógica** (`*.test.js`, `npm test`): funciones puras en Node, sin DOM. Son la mayoría de las reglas
+  y corren en un par de segundos.
+- **Componentes y hooks** (`*.ui.test.jsx` / `*.ui.test.js`, `npm run test:ui`): con Testing Library
+  sobre happy-dom (un DOM simulado). El nombre del archivo decide el grupo y el entorno.
+
+En `src/`:
+
+### Lógica
 
 | Archivo | Qué prueba |
 |---|---|
 | `shared/api/apiClient` | Cliente HTTP: validación de la respuesta con su esquema, renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error traducidos (nunca el código del backend) y `errorMessage`. |
-| `app/routes/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
-| `pages/login/ui/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
-| `pages/settings/cows/form/ui/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
-| `pages/settings/cows/detail/ui/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
-| `pages/settings/cows/new-event/ui/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
-| `shared/ui/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
-| `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
-| `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones; con la lista vacía, agregar muestra un segundo selector. |
-| `shared/ui/entity-list-page/EntityListPage` | Pantalla de listado: búsqueda, botón de agregar según permiso, confirmación antes de eliminar y panel lateral (mapa). |
-| `shared/lib/form/useEntityForm` | Formularios: alta vacía, carga de lo que se edita, validación, guardado y mensajes de error (de la API o del formulario). |
-| `shared/lib/click-outside/useClickOutside` | Cierre de menús al tocar afuera, y nada mientras está cerrado. |
 | `shared/lib/format/formatNumber` | Números con separadores de Argentina, decimales exactos, abreviados y sin valor. |
-| `shared/ui/form/CheckboxGroupField` | Marcar y desmarcar opciones (los roles de un usuario), en orden, y opciones deshabilitadas. |
-| `features/select-history-range/ui/RangePicker` | Selector de rango del historial: presets, rango personalizado, períodos anterior y siguiente. |
-| `shared/lib/polling/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
-| `shared/lib/list/useEntityList` | Listados: carga, error y borrado con confirmación. |
-| `shared/lib/list/useListSearch` | Búsqueda en listados: sin acentos ni mayúsculas, varios campos, máximo 8 resultados. |
 | `shared/lib/date/dateRange` | Rangos del historial: "Hoy" (mínimo 6 h), rangos móviles y fijos, desplazamiento, textos. |
 | `shared/lib/date/dateHelper` | Tiempo transcurrido ("hace 5 min"). |
 | `shared/lib/geo/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
@@ -112,8 +107,61 @@ Componentes con Testing Library sobre jsdom (los archivos que lo necesitan lo in
 | `features/push-notifications/lib/serverKey` | Clave del servidor (base64url) en bytes para suscribir el navegador. |
 | `entities/cow/model/cow` | Nombre para mostrar y edad de la vaca. |
 | `widgets/explorer/model/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
-| `widgets/explorer/ui/Explorer` | Explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
 | `entities/viewer/model/permissions` | Permisos del usuario (`can`). |
 | `widgets/navigation/model/navItems` | Opciones del menú que ve cada usuario según sus permisos. |
 | `entities/collar/model/collar` | Nombre para mostrar del collar. |
 | `shared/lib/user-agent/userAgent` | Descripción del dispositivo de cada sesión. |
+
+### Componentes y hooks
+
+| Archivo | Qué prueba |
+|---|---|
+| `app/routes/ProtectedRoute` | Rutas privadas: muestra la página con sesión, manda al login sin sesión y ofrece reintentar si no se pudo verificar. |
+| `pages/login/ui/LoginPage` | Redirección después del login a la página pedida, o al mapa si ya hay sesión. |
+| `pages/settings/cows/form/ui/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
+| `pages/settings/cows/detail/ui/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
+| `pages/settings/cows/new-event/ui/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
+| `shared/ui/form/SelectField` | Select accesible: combobox con el nombre de su etiqueta (o `ariaLabel`), la opción elegida como contenido, obligatorio, lista de opciones asociada. |
+| `shared/ui/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
+| `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
+| `shared/ui/form/MultiSelectField` | Agregar y quitar selecciones; con la lista vacía, agregar muestra un segundo selector. |
+| `shared/ui/entity-list-page/EntityListPage` | Pantalla de listado: búsqueda, botón de agregar según permiso, confirmación antes de eliminar y panel lateral (mapa). |
+| `shared/lib/form/useEntityForm` | Formularios: alta vacía, carga de lo que se edita, validación, guardado y mensajes de error (de la API o del formulario). |
+| `shared/lib/click-outside/useClickOutside` | Cierre de menús al tocar afuera, y nada mientras está cerrado. |
+| `shared/ui/form/CheckboxGroupField` | Marcar y desmarcar opciones (los roles de un usuario), en orden, y opciones deshabilitadas. |
+| `features/select-history-range/ui/RangePicker` | Selector de rango del historial: presets, rango personalizado, períodos anterior y siguiente. |
+| `shared/lib/polling/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
+| `shared/lib/list/useEntityList` | Listados: carga, error y borrado con confirmación. |
+| `shared/lib/list/useListSearch` | Búsqueda en listados: sin acentos ni mayúsculas, varios campos, máximo 8 resultados. |
+| `widgets/explorer/ui/Explorer` | Explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
+
+## End-to-end (frontend)
+
+La app construida, en Chromium (Playwright), contra el backend real de `../backend` y una base
+PostgreSQL 18 + PostGIS en Docker con el schema de producción, los datos de referencia y `deploy.sql`.
+`e2e/global-setup.ts` levanta todo y lo borra al terminar:
+
+- **Base:** un contenedor con los datos en memoria (nada en el disco).
+- **Backend:** `../backend` tal cual, con solo el job de procesar mensajes (`JOBS`). No escribe nada
+  en `../backend`: logs, imágenes y firmware van a una carpeta temporal.
+- **App:** `vite build` y `vite preview` en https (las cookies son `secure`), con la API por su proxy,
+  como en producción.
+
+- **Requisitos:** Docker, `../backend` con sus dependencias y el navegador de Playwright
+  (`npx playwright install chromium`, una vez; queda en `~/.cache/ms-playwright`).
+- **Comando:** `npm run test:e2e` (~1 minuto). Un test que falla deja su traza en `e2e-results/`
+  (`npx playwright show-trace <archivo>`) y el reporte en `e2e-report/`.
+- **Datos:** cada test empieza con la base vacía y un administrador; prepara lo que necesita por la
+  API y prueba por la pantalla solo el flujo que le toca.
+- **Mapa:** los mosaicos satelitales se reemplazan por una imagen vacía (sin internet).
+
+En `e2e/`:
+
+| Archivo | Qué prueba |
+|---|---|
+| `sessions` | Login y vuelta a la página pedida, contraseña incorrecta, cerrar sesión desde el menú; un usuario de consulta ve los datos sin forma de cambiarlos; una página que el rol no puede usar lo devuelve al mapa; el administrador ve los usuarios. |
+| `cows` | Alta de una vaca con collar, categoría y grupo, y su ficha; edición desde la ficha; borrado con confirmación; un error del backend mostrado en castellano (código de collar repetido). |
+| `health` | Vacunación con su retiro en el resumen y anulación con motivo (el retiro deja de contar); castración solo para machos. |
+| `zones` | Dibujo de una zona con el mouse; en un teléfono (táctil emulado), con la mira: mover el mapa, agregar cada punto, cerrar. |
+| `map` | Mensajes del gateway procesados por el backend: buscar la vaca en el mapa en vivo abre su posición; el enlace de una notificación abre el mapa en la vaca. |
+
