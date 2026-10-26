@@ -33,8 +33,11 @@ TypeScript, entorno Node. En `src/`:
 | `shared/middleware/errorHandler` | Status y cuerpo de cada tipo de error: `AppError`, multer (413), errores 4xx de Express, 500 sin detalles. |
 | `shared/utils/positionHelper` | Distancia (haversine) y rumbo entre dos posiciones. |
 | `shared/utils/escapeLike` | Escapado de comodines `%` y `_` en búsquedas `LIKE`. |
+| `shared/utils/buildConditions` | Filtros de los repositorios: una condición por operador con los valores como parámetros, listas, nulos, y error ante columnas u operadores desconocidos. |
+| `shared/db/types/geography` | Puntos y polígonos de PostGIS: longitud primero al escribir, `[latitud, longitud]` al leer, anillo cerrado y sin repetir el primer vértice. |
 | `modules/identity/permission.util` | Matriz de permisos: todos los roles definidos, admin con todo, unión de varios roles, permisos extra por tipo de comando. |
 | `modules/identity/authorize.middleware` | 403 sin el permiso, `authorizeAny` y error al arrancar si una ruta pide un permiso inexistente. |
+| `modules/identity/authenticateUser.middleware` | Token de acceso: válido con los permisos de sus roles; 401 sin token, firmado con otra clave, vencido, con rol numérico o inválido. |
 | `modules/identity/user.validator` | Roles de un usuario: default, sin repetir, rechazo de roles desconocidos y de la lista vacía. |
 | `modules/livestock/cowPermission.util` | Permiso que pide cada campo del formulario de vaca: el collar aparte del resto. |
 | `modules/identity/requestInfo.util` | IP y user agent que se guardan en la sesión: IPv4 dentro de IPv6, valores inválidos, caracteres de control. |
@@ -44,6 +47,9 @@ TypeScript, entorno Node. En `src/`:
 | `modules/devices/battery.util` | Porcentaje de batería según el voltaje y nivel (ok, bajo, crítico). |
 | `modules/devices/firmwareVersion.util` | Normalización de versiones de firmware a `X.Y.Z`. |
 | `modules/monitoring/zone.validator` | Polígonos de zonas: vértice de cierre, mínimo de vértices, coordenadas fuera de rango. |
+| `modules/monitoring/position.validator` | Mapa en vivo: 72 horas por defecto, hasta 30 días. |
+| `modules/telemetry/rawRfMessage.util` | Mensajes del gateway: qué se guarda (valores de relleno a null, trama corrupta, voltaje del sueño legacy, campos extra en `data`, MAC normalizada), control de ubicación, intensidad de señal y nivel de batería con histéresis. |
+| `modules/telemetry/rawRfMessage.validator` | Mensaje del gateway: hora de recepción si no trae reloj, campos de cada tipo, y rechazo de collar, coordenadas, fecha, trama o secuencia inválidos. |
 | `modules/health/health.util` | Fin del retiro de una aplicación (también en tratamientos de varios días) y resumen de la historia: retiro vigente, último peso, refuerzos pendientes y vencidos, sin contar los anulados. |
 | `modules/health/health.validator` | Eventos sanitarios de cada tipo: campos vacíos, refuerzo posterior a la vacunación, revisación con algún dato, condición corporal, fechas futuras; productos. |
 | `modules/analytics/track.util` | Limpieza del recorrido para el dw: paradas con ruido del GPS sin distancia, saltos aislados, caminatas, huecos largos, minutos en movimiento y descanso por día, visitas a zonas con el borde ruidoso. |
@@ -98,13 +104,15 @@ En `src/`:
 | `shared/api/apiClient` | Cliente HTTP: validación de la respuesta con su esquema, renovación de la sesión al vencer el token (una sola vez, compartida), cuándo se cierra la sesión y cuándo no (servidor caído, sin red), mensajes de error traducidos (nunca el código del backend) y `errorMessage`. |
 | `shared/lib/format/formatNumber` | Números con separadores de Argentina, decimales exactos, abreviados y sin valor. |
 | `shared/lib/date/dateRange` | Rangos del historial: "Hoy" (mínimo 6 h), rangos móviles y fijos, desplazamiento, textos. |
-| `shared/lib/date/dateHelper` | Tiempo transcurrido ("hace 5 min"). |
+| `shared/lib/date/dateHelper` | Tiempo transcurrido ("hace 5 min") y formatos de día, hora y fecha con hora en la hora del campo. |
 | `shared/lib/geo/geo` | Distancias, áreas de polígonos, rumbo como punto cardinal y formatos. |
 | `widgets/map/lib/mapPoints` | Mapa: agrupación por collar, colores estables, recorridos y pesos del mapa de calor. |
 | `entities/zone/model/zoneStyles` | Color de cada tipo de zona y conversión de zonas a GeoJSON. |
 | `entities/health-event/model/eventDisplay` | Cómo se muestra cada evento (título y datos según el tipo). |
 | `features/draw-zone/lib/drawGuide` | Guía del dibujo con mira (pantallas táctiles): lados dibujados, el siguiente, el de cierre y los vértices. |
-| `features/push-notifications/lib/serverKey` | Clave del servidor (base64url) en bytes para suscribir el navegador. |
+| `features/push-notifications/lib/serverKey` | Clave del servidor (base64url) en bytes para suscribir el navegador, y si una suscripción se hizo con esa clave. |
+| `entities/zone/model/zone` | Zonas: los puntos de la API (`[lat, lon]`) como anillo del mapa (`[lon, lat]`) y de vuelta. |
+| `shared/lib/map-config/mapConfig` | Dónde arranca el mapa: el campo por defecto, la última posición del mapa en vivo, y sin almacenamiento o con datos rotos. |
 | `entities/cow/model/cow` | Nombre para mostrar y edad de la vaca. |
 | `widgets/explorer/model/explorer` | Explorador: fechas de los períodos, armado de los gráficos (fecha en el eje, la otra dimensión como series, demasiadas series), escalas de los ejes, formatos y CSV. |
 | `entities/viewer/model/permissions` | Permisos del usuario (`can`). |
@@ -133,6 +141,7 @@ En `src/`:
 | `shared/lib/polling/usePolling` | Recarga periódica: pausa con la página oculta, recarga al volver, datos viejos (`stale`), errores. |
 | `shared/lib/list/useEntityList` | Listados: carga, error y borrado con confirmación. |
 | `shared/lib/list/useListSearch` | Búsqueda en listados: sin acentos ni mayúsculas, varios campos, máximo 8 resultados. |
+| `features/push-notifications/model/usePushNotifications` | Notificaciones del dispositivo: sin soporte, iPhone sin instalar, bloqueadas, servidor sin claves, activas solo en esta sesión; activar (permiso, clave, reemplazo de una suscripción hecha con otra clave), desactivar, prueba y errores. |
 | `widgets/explorer/ui/Explorer` | Explorador: consulta por defecto, gráfico y tabla, cambio de datos, números sin agrupar, rol sin datos para consultar. |
 
 ## End-to-end (frontend)

@@ -15,139 +15,26 @@ import firmwareRepository from '../devices/firmware.repository';
 
 import logger from '../../shared/utils/logger';
 import haversine, { bearing } from '../../shared/utils/positionHelper';
-import { FACTORY_PARAMS } from '../devices/collarParams.constants';
 import {
-  EVENT_TYPES, INVALID_REASONS, MESSAGE_TYPES, INTEGRITY,
+  EVENT_TYPES, INVALID_REASONS, MESSAGE_TYPES,
 } from './rf.constants';
+import {
+  buildRawRfMessage, hasPosition, computeSignalStrength, batteryLevel,
+} from './rawRfMessage.util';
 
 const KNOWN_TYPES = Object.values(MESSAGE_TYPES).filter((t) => t !== MESSAGE_TYPES.UNKNOWN);
-
-// Recovery needs this margin over batteryLow, so readings around the threshold don't flap
-const BATTERY_HYSTERESIS_MV = 100;
 
 // Speed and direction need some movement and some time to mean something: below this distance
 // the animal is still (the rest is GPS noise), and below this interval (e.g. the sleep message
 // right after a position) any noise becomes an absurd speed.
 const MIN_MOVEMENT_M = 10;
 const MIN_MOTION_INTERVAL_MS = 30 * 1000;
-// Voltages outside this range are not battery readings (noise, legacy sleep with the GPS time)
-const MIN_VOLTAGE = 2;
-const MAX_VOLTAGE = 5;
-
 const SLEEP_EVENTS = [EVENT_TYPES.SLEEP, EVENT_TYPES.WAKE];
 const BATTERY_EVENTS = [
   EVENT_TYPES.BATTERY_LOW,
   EVENT_TYPES.BATTERY_CRITICAL,
   EVENT_TYPES.BATTERY_RECOVERED,
 ];
-
-// Fields stored in their own columns. Any other field sent by the gateway goes to `data`.
-const COLUMN_FIELDS = [
-  'collarId', 'latitude', 'longitude', 'recordedAt', 'type', 'integrity', 'raw', 'seq',
-  'speed', 'altitude', 'satellitesCount', 'hdop', 'rssi', 'snr', 'voltage', 'crc',
-];
-
-function hasPosition(type) {
-  return !type || type === MESSAGE_TYPES.POS || type === MESSAGE_TYPES.SLEEP;
-}
-
-function isPrimitive(value) {
-  return value === null || ['string', 'number', 'boolean'].includes(typeof value);
-}
-
-function normalizeRssi(rssi) {
-  if (rssi == null) return null;
-
-  const minVal = -140;
-  const maxVal = -70;
-
-  const value = ((rssi - minVal) / (maxVal - minVal)) * 100;
-
-  return Math.max(0, Math.min(100, value));
-}
-
-function normalizeSnr(snr) {
-  if (snr == null) return null;
-
-  const minVal = -17;
-  const maxVal = 6;
-
-  const value = ((snr - minVal) / (maxVal - minVal)) * 100;
-
-  return Math.max(0, Math.min(100, value));
-}
-
-function computeSignalStrength(rssi, snr) {
-  const rssiScore = normalizeRssi(rssi);
-  const snrScore = normalizeSnr(snr);
-
-  if (rssiScore == null && snrScore == null) return null;
-
-  let rssiWeight = 0.1;
-  let snrWeight = 0.9;
-
-  if (snrScore == null) {
-    rssiWeight = 1;
-    snrWeight = 0;
-  }
-
-  if (rssiScore == null) {
-    snrWeight = 1;
-    rssiWeight = 0;
-  }
-
-  return Math.round(rssiScore * rssiWeight + snrScore * snrWeight);
-}
-
-// Location checks done on reception. Returns the invalid reason.
-function checkLocation(latitude, longitude) {
-  // The collar GPS has no valid fix.
-  if (latitude === 0 && longitude === 0) {
-    return INVALID_REASONS.GPS_UNINITIALIZED;
-  }
-
-  // No reliable position (the collar never had a fix), or invalid because of RF channel noise.
-  // Keep the message because RSSI, SNR and other metadata may still
-  // be useful for analyzing the transmission.
-  if (latitude === -1 || longitude === -1) {
-    return INVALID_REASONS.OUT_OF_RANGE;
-  }
-
-  // For now, use a hardcoded geographic range around the gateway.
-  if (
-    latitude > -32.8
-    || latitude < -33
-    || longitude > -61.1
-    || longitude < -61.3
-  ) {
-    return INVALID_REASONS.WRONG_LOCATION;
-  }
-
-  return INVALID_REASONS.OK;
-}
-
-// Battery level after a reading: one of BATTERY_EVENTS
-function batteryLevel(voltage, params, previous) {
-  const mv = Math.round(voltage * 1000);
-  const { batteryLow, batteryCritical } = { ...FACTORY_PARAMS, ...params };
-
-  if (mv < batteryCritical) {
-    return EVENT_TYPES.BATTERY_CRITICAL;
-  }
-
-  if (mv < batteryLow) {
-    // Going up from critical to low is not an event
-    return previous === EVENT_TYPES.BATTERY_CRITICAL
-      ? EVENT_TYPES.BATTERY_CRITICAL
-      : EVENT_TYPES.BATTERY_LOW;
-  }
-
-  if (mv >= batteryLow + BATTERY_HYSTERESIS_MV) {
-    return EVENT_TYPES.BATTERY_RECOVERED;
-  }
-
-  return previous;
-}
 
 // State needed to derive events, per collar id. Updated while the batch is processed, so a
 // collar with several messages in the batch doesn't repeat events.
@@ -301,66 +188,8 @@ async function processEvents(raw, collar, state, tx) {
 
 const rawRfMessageService = {
 
-  // Row to store from the body sent by the gateway (already validated).
-  // Filler values of the gateway (latitude -1, hdop 1.0, voltage 0) are stored as null.
-  buildRawRfMessage(body, gatewayId) {
-    const {
-      collarId, latitude, longitude, type, integrity, voltage, hdop,
-    } = body;
-
-    const data = Object.fromEntries(
-      Object.entries(body)
-        .filter(([key, value]) => !COLUMN_FIELDS.includes(key) && isPrimitive(value)),
-    );
-
-    if (typeof data.mac === 'string') {
-      data.mac = data.mac.toLowerCase().replace(/[:-]/g, '');
-    }
-
-    const isBad = integrity === INTEGRITY.BAD;
-    const isLegacy = integrity === INTEGRITY.LEGACY;
-
-    let invalidReasonId = INVALID_REASONS.OK;
-    let location = null;
-
-    if (isBad) {
-      invalidReasonId = INVALID_REASONS.CORRUPTED_FRAME;
-    } else if (hasPosition(type)) {
-      invalidReasonId = checkLocation(latitude, longitude);
-
-      if (invalidReasonId === INVALID_REASONS.OK
-        || invalidReasonId === INVALID_REASONS.WRONG_LOCATION) {
-        location = { latitude, longitude };
-      }
-    }
-
-    const validVoltage = !isBad
-      && !(type === MESSAGE_TYPES.SLEEP && isLegacy)
-      && voltage >= MIN_VOLTAGE
-      && voltage <= MAX_VOLTAGE;
-
-    return {
-      collarCode: collarId > 0 ? collarId : null,
-      type: type ?? null,
-      integrity: integrity ?? null,
-      raw: body.raw?.toLowerCase() ?? null,
-      seq: body.seq ?? null,
-      data: Object.keys(data).length > 0 ? data : null,
-      recordedAt: body.recordedAt,
-      location,
-      speed: body.speed,
-      altitude: body.altitude,
-      satellitesCount: body.satellitesCount,
-      // Only meaningful in positions
-      hdop: (!type || type === MESSAGE_TYPES.POS) && !isBad && !isLegacy ? hdop : null,
-      voltage: validVoltage ? voltage : null,
-      rssi: body.rssi,
-      snr: body.snr,
-      crc: body.crc,
-      invalidReasonId,
-      gatewayId,
-    };
-  },
+  // Row to store from the body sent by the gateway (rawRfMessage.util)
+  buildRawRfMessage,
 
   async processPendingMessages() {
   // logger.debug('processPendingMessages start');
