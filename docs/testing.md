@@ -118,6 +118,10 @@ En `src/`:
 | `entities/viewer/model/permissions` | Permisos del usuario (`can`). |
 | `widgets/navigation/model/navItems` | Opciones del menú que ve cada usuario según sus permisos. |
 | `entities/collar/model/collar` | Nombre para mostrar del collar. |
+| `entities/command/model/command` | Comandos: nombres de los tipos, estado de cada entrega, cuándo se puede cancelar, resumen de la lista. |
+| `entities/command/model/collarParams` | Parámetros del collar: horas en UTC y locales, y cómo se muestra cada valor. |
+| `entities/firmware-version/model/firmware` | Nombre y tamaño para mostrar del firmware. |
+| `pages/settings/commands/form/model/commandForm` | Formulario de comandos: validación, cuerpo del pedido según el tipo y qué comandos piden confirmación. |
 | `shared/lib/user-agent/userAgent` | Descripción del dispositivo de cada sesión. |
 
 ### Componentes y hooks
@@ -129,6 +133,10 @@ En `src/`:
 | `pages/settings/cows/form/ui/CowFormPage` | Qué envía el formulario de vaca: sin cambios, quitar collar, imagen y grupos, sexo y categoría, y qué campos puede cambiar cada rol (veterinario sin collar, técnico solo el collar). |
 | `pages/settings/cows/detail/ui/CowDetailPage` | Ficha de la vaca: datos, resumen sanitario y eventos; sin historia para quien no puede leerla; anular un evento con motivo. |
 | `pages/settings/cows/new-event/ui/HealthEventFormPage` | Registro de un evento: productos según el tipo, solo los campos del tipo y números, producto obligatorio. |
+| `pages/settings/commands/form/ui/CommandFormPage` | Envío de un comando: tipos según los permisos, parámetros completados, zonas que entran en el collar, versión de firmware, confirmación y faltantes. |
+| `pages/settings/commands/detail/ui/CommandDetailPage` | Detalle de un comando: estado por collar y cancelación con confirmación. |
+| `pages/settings/firmwares/form/ui/FirmwareFormPage` | Subida de un firmware y rechazo del backend. |
+| `shared/ui/form/FileField` | Elegir un archivo y rechazo de los que superan el límite. |
 | `shared/ui/form/SelectField` | Select accesible: combobox con el nombre de su etiqueta (o `ariaLabel`), la opción elegida como contenido, obligatorio, lista de opciones asociada. |
 | `shared/ui/form/FormField` | Label asociado al input y botón para mostrar la contraseña. |
 | `shared/ui/form/ImageField` | Imagen actual, quitarla, reemplazarla y rechazo de archivos grandes o que no son imágenes. |
@@ -172,5 +180,6 @@ En `e2e/`:
 | `cows` | Alta de una vaca con collar, categoría y grupo, y su ficha; edición desde la ficha; borrado con confirmación; un error del backend mostrado en castellano (código de collar repetido). |
 | `health` | Vacunación con su retiro en el resumen y anulación con motivo (el retiro deja de contar); castración solo para machos. |
 | `zones` | Dibujo de una zona con el mouse; en un teléfono (táctil emulado), con la mira: mover el mapa, agregar cada punto, cerrar. |
+| `devices` | Subida de firmware (código repetido, archivo inválido); actualización enviada y seguida hasta que el gateway confirma; cambio de parámetros y cancelación; el encargado solo puede enviar comandos de zona. |
 | `map` | Mensajes del gateway procesados por el backend: buscar la vaca en el mapa en vivo abre su posición; el enlace de una notificación abre el mapa en la vaca. |
 
