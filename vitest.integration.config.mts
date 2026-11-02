@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
 // Integration tests (npm run test:integration): the API and the jobs against a real PostgreSQL +
-// PostGIS in Docker, with the schema of production and deploy.sql. See test/integration/globalSetup.
+// PostGIS in Docker, with the schema of production and deploy.sql.
+// See test/integration/globalSetup.
 export default defineConfig({
   test: {
     include: ['test/integration/**/*.test.ts'],
